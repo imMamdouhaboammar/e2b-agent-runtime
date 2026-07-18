@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM node:20.14.0-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /usr/src/app
 
@@ -10,7 +10,7 @@ COPY . .
 RUN pnpm build
 
 # Stage 2: Runtime
-FROM node:20.14.0-alpine AS runtime
+FROM node:22-alpine AS runtime
 
 WORKDIR /usr/src/app
 
