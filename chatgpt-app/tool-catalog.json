@@ -1,0 +1,93 @@
+{
+  "tools": [
+    {
+      "name": "runtime_create_session",
+      "description": "Create a disposable E2B Worker Sandbox session for isolated code execution",
+      "safety_classification": "state-changing",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "timeoutMs": {
+            "type": "number",
+            "description": "Optional worker session timeout in milliseconds"
+          },
+          "taskLabel": {
+            "type": "string",
+            "description": "Optional label or short task description"
+          }
+        }
+      }
+    },
+    {
+      "name": "runtime_list_sessions",
+      "description": "List all active and recent worker runtime sessions owned by this controller",
+      "safety_classification": "read-only",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "runtime_get_session",
+      "description": "Retrieve state and lifecycle information for a specific runtime session",
+      "safety_classification": "read-only",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "Opaque runtime session ID"
+          }
+        },
+        "required": ["sessionId"]
+      }
+    },
+    {
+      "name": "runtime_run_command",
+      "description": "Execute a terminal command inside the specified worker sandbox restricted to /workspace",
+      "safety_classification": "state-changing",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "Opaque runtime session ID"
+          },
+          "command": {
+            "type": "string",
+            "description": "Terminal shell command to execute"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Working directory inside sandbox"
+          }
+        },
+        "required": ["sessionId", "command"]
+      }
+    },
+    {
+      "name": "runtime_destroy_session",
+      "description": "Idempotently kill and destroy a worker sandbox session",
+      "safety_classification": "destructive",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "description": "Opaque runtime session ID to destroy"
+          }
+        },
+        "required": ["sessionId"]
+      }
+    },
+    {
+      "name": "runtime_release_readiness",
+      "description": "Retrieve the honest release readiness state, evaluated commits, passed/failed release gates, and verified telemetry details",
+      "safety_classification": "read-only",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}
