@@ -6,7 +6,7 @@ describe('SkillsRuntimeRegistry Unit Tests', () => {
 
   it('should return valid runtime info', () => {
     const info = registry.getRuntimeInfo();
-    expect(info.runtimeVersion).toBe('0.1.0');
+    expect(info.runtimeVersion).toBe('0.2.0');
     expect(info.securityMode).toBe('pr-only-no-direct-push');
   });
 

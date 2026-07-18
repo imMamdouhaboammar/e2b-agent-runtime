@@ -91,6 +91,15 @@ export class CompletionGateEvaluatorService {
       passedGates.push('validation_passed');
     }
 
+    // 5b. Browser UI Verification Check (for web UI tasks)
+    const isWebTask = ['feature', 'bug-fix'].includes(task.taskMode);
+    const browserEv = evidenceList.filter((e) => e.category.startsWith('browser-') && e.status === 'passed' && !e.isStale);
+    if (isWebTask && browserEv.length === 0 && !acknowledgeUnavailableChecks) {
+      warnings.push('Task affects web behavior but no fresh passing browser UI evidence recorded.');
+    } else if (browserEv.length > 0) {
+      passedGates.push('browser_verification_passed');
+    }
+
     // 6. Diff Review & Secret Scan Check
     const review = await diffReview.reviewDiff(taskId, true);
     if (review.blockers.length > 0) {

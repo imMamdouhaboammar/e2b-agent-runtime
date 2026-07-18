@@ -1,6 +1,56 @@
 # E2B Agent Runtime
 
-An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using [E2B Sandboxes](https://e2b.dev), orchestrating disposable E2B Worker Sandboxes for safe tool execution, persistent PTY terminal sessions, repository intelligence, task planning, evidence tracking, bounded repair cycles, checkpoints, diff review, and GitHub branch publication.
+An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using [E2B Sandboxes](https://e2b.dev), orchestrating disposable E2B Worker Sandboxes for safe tool execution, persistent PTY terminal sessions, repository intelligence, task planning, evidence tracking, bounded repair cycles, checkpoints, diff review, GitHub branch publication, and **browser + UI verification via Playwright Chromium**.
+
+---
+
+## Phase 6 Architecture: Browser & User-Interface Verification
+
+```mermaid
+flowchart TD
+    A[ChatGPT Web / Remote MCP Client] -->|HTTPS & Bearer token| B[Remote MCP Controller]
+    B --> C[Phase 5 Coding Workflow Engine]
+    C --> D[Completion Gate Evaluator]
+    D -->|web task?| E[Browser Verification Gate]
+
+    B --> F[Phase 6 Browser Engine]
+    F --> G[Browser Session Manager]
+    F --> H[Navigation Guard]
+    F --> I[Preview Resolver]
+    F --> J[Page Inspector]
+    F --> K[Evidence Collector]
+    F --> L[Browser Actions]
+    F --> M[Browser Assertions]
+    F --> N[Accessibility Scanner]
+    F --> O[Artifact Store]
+    F --> P[Browser Failure Classifier]
+    F --> Q[Verification Cycle Manager]
+
+    G --> R[Playwright Chromium]
+    R --> S[Dev Server in Worker]
+    O --> T[/workspace/.agent-artifacts/browser/]
+    B --> U[Phase 3 GitHub Publication]
+    U --> V[Pull Request]
+```
+
+### Phase 6 Trust Boundaries & Navigation Policy
+
+| Component | Policy | Details |
+|---|---|---|
+| **Navigation Guard** | Allowlist | Only `http:` and `https:` schemes allowed. `file:`, `data:`, `javascript:` are blocked unconditionally. |
+| **Metadata Shield** | Hard block | `169.254.169.254`, entire `169.254.0.0/16`, `metadata.google.internal` are unreachable regardless of config. |
+| **Embedded Credentials** | Hard block | URLs containing `username:password@` syntax are rejected at guard entry. |
+| **External Navigation** | Opt-in | External hosts denied by default. An explicit `allowedPreviewHost` or `allowedDomains` entry is required per request. |
+| **Traffic Tokens** | Redacted | E2B sandbox traffic tokens are never returned in MCP responses. Preview resolution returns only the internal `http://127.0.0.1:<port>` URL. |
+| **Query Params** | Sanitized | Sensitive parameter names (`token`, `key`, `access_token`, `password`, `secret`, `signature`, `session`, `code`) are replaced with `[REDACTED]` in all evidence, logs, and artifact URLs. |
+
+### Phase 6 Artifact Policy
+
+- **Storage path**: `/workspace/.agent-artifacts/browser/` (outside repository git tree — never committed).
+- **Retention**: configurable via `BROWSER_ARTIFACT_RETENTION_MS` (default: 24 hours).
+- **Download URLs**: short-lived pre-signed URLs, configurable via `BROWSER_DOWNLOAD_URL_TTL_MS` (default: 10 minutes).
+- **Confirmation delete**: `artifact_delete` requires `confirm: true` to prevent accidental loss.
+- **Integrity**: every artifact has a SHA-256 hash computed at write time and verified on retrieval.
 
 ---
 
@@ -23,7 +73,7 @@ flowchart TD
     M --> N[Repository and Feature Branch]
     K --> O[Phase 3 GitHub Publication]
     O --> P[Official GitHub Connector]
-    Q --> R[Pull Request]
+    P --> Q[Pull Request]
 ```
 
 ### Trust Boundaries & Isolation Model
@@ -62,6 +112,82 @@ cp .env.example .env
 | `GITHUB_APP_ID` | GitHub App ID | - | If GitHub publishing enabled |
 | `GITHUB_APP_INSTALLATION_ID` | GitHub App Installation ID | - | If GitHub publishing enabled |
 | `GITHUB_APP_PRIVATE_KEY` | GitHub App PEM Private Key | - | If GitHub publishing enabled |
+| `BROWSER_ENGINE` | Browser engine (`chromium` only) | `chromium` | No |
+| `BROWSER_HEADLESS` | Run browser headless | `true` | No |
+| `BROWSER_DEFAULT_TIMEOUT_MS` | Default action/navigation timeout | `30000` | No |
+| `BROWSER_MAX_SESSIONS_PER_WORKSPACE` | Max concurrent browser sessions | `2` | No |
+| `BROWSER_MAX_PAGES_PER_SESSION` | Max open pages per session | `5` | No |
+| `BROWSER_ALLOW_EXTERNAL_NAVIGATION` | Allow navigation to external hosts | `false` | No |
+| `BROWSER_ARTIFACT_RETENTION_MS` | Artifact retention window | `86400000` (24h) | No |
+| `BROWSER_DOWNLOAD_URL_TTL_MS` | Pre-signed download URL TTL | `600000` (10m) | No |
+
+---
+
+## Phase 6 MCP Tools Reference (26 Browser Tools)
+
+### Browser Session Lifecycle
+
+| Tool | Category | Description |
+|---|---|---|
+| `browser_session_create` | State-changing | Launches a new Playwright Chromium session with isolated context. |
+| `browser_session_close` | State-changing | Closes browser context and all pages; stops trace if recording. |
+| `browser_session_list` | Read-only | Lists active sessions for a workspace. |
+| `browser_page_open` | State-changing | Opens a new page within a browser session. |
+| `browser_page_close` | State-changing | Closes a page and clears its evidence buffers. |
+
+### Navigation & Preview Resolution
+
+| Tool | Category | Description |
+|---|---|---|
+| `browser_navigate` | State-changing | Navigates a page to a URL after navigation guard validation. |
+| `browser_preview_resolve` | Read-only | Resolves the internal `http://127.0.0.1:<port>` URL for a running dev server. |
+| `browser_url_validate` | Read-only | Validates and sanitizes a URL against the navigation policy without navigating. |
+
+### Page Inspection
+
+| Tool | Category | Description |
+|---|---|---|
+| `browser_page_snapshot` | Read-only | Captures a bounded structural snapshot (headings, landmarks, buttons, links, inputs). |
+| `browser_page_accessibility_scan` | Read-only | Runs an axe-core accessibility scan on the current page. |
+| `browser_screenshot` | Read-only | Takes a screenshot and stores it as an artifact. |
+
+### Actions
+
+| Tool | Category | Description |
+|---|---|---|
+| `browser_click` | State-changing | Clicks an element by locator strategy (elementRef, role, label, testId, css). |
+| `browser_fill` | State-changing | Fills a form field (password fields are redacted from logs). |
+| `browser_press` | State-changing | Sends a keyboard key press to a page or element. |
+| `browser_select_option` | State-changing | Selects an option in a `<select>` element. |
+| `browser_check` | State-changing | Checks or unchecks a checkbox. |
+| `browser_wait_for` | Read-only | Waits for a network idle, load, or DOM-content-loaded event. |
+
+### Assertions & Evidence
+
+| Tool | Category | Description |
+|---|---|---|
+| `browser_assert` | Read-only | Evaluates a structured UI assertion (url-equals, text-visible, element-count, etc.) and returns pass/fail with evidence. |
+| `browser_console_get` | Read-only | Returns buffered console entries (errors, warnings) for a page. |
+| `browser_network_failures_get` | Read-only | Returns buffered network failure entries for a page. |
+| `browser_page_errors_get` | Read-only | Returns buffered uncaught JavaScript errors for a page. |
+| `browser_failure_classify` | Read-only | Classifies a browser failure into a category with confidence and suggested inspection actions. |
+
+### Traces & Artifacts
+
+| Tool | Category | Description |
+|---|---|---|
+| `browser_trace_start` | State-changing | Starts Playwright trace recording for a browser session. |
+| `browser_trace_stop` | State-changing | Stops trace recording and saves the trace archive as an artifact. |
+| `artifact_list` | Read-only | Lists stored browser artifacts for a workspace or task. |
+| `artifact_create_download_url` | Read-only | Issues a short-lived pre-signed URL for downloading an artifact. |
+| `artifact_delete` | State-changing | Permanently deletes an artifact (requires `confirm: true`). |
+
+### Verification Cycles
+
+| Tool | Category | Description |
+|---|---|---|
+| `browser_verification_cycle_start` | State-changing | Opens a browser verification cycle bound to the current task head SHA. |
+| `browser_verification_cycle_complete` | State-changing | Closes a cycle; detects stale evidence when the head SHA has moved. |
 
 ---
 
@@ -109,6 +235,14 @@ pnpm check
 
 # Run unit tests only
 pnpm test
+
+# Run browser integration tests (requires Chromium installed)
+pnpm test:integration:browser
+
+# Browser verification scripts
+pnpm browser:verify-installation   # Confirms Playwright Chromium is installed
+pnpm browser:print-versions        # Prints Playwright and Chromium version info
+pnpm browser:validate-policies     # Validates all four runtime policy JSON files
 
 # Workflow policy & list scripts
 pnpm workflow:validate

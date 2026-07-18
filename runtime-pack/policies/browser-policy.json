@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "browser-policy",
+  "version": "1.0.0",
+  "engine": "chromium",
+  "maxBrowserSessionsPerWorkspace": 2,
+  "maxPagesPerBrowserSession": 5,
+  "defaultTimeoutMs": 30000,
+  "navigationTimeoutMs": 60000,
+  "actionTimeoutMs": 30000,
+  "sessionIdleTimeoutMs": 1800000,
+  "consoleBufferMaxItems": 1000,
+  "networkBufferMaxItems": 2000,
+  "pageErrorBufferMaxItems": 250,
+  "headless": true
+}

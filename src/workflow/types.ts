@@ -53,6 +53,15 @@ export const EVIDENCE_CATEGORIES = [
   'security',
   'git',
   'custom',
+  'browser-navigation',
+  'browser-assertion',
+  'browser-console',
+  'browser-page-error',
+  'browser-network',
+  'browser-screenshot',
+  'browser-trace',
+  'browser-accessibility',
+  'browser-flow',
 ] as const;
 export type EvidenceCategory = (typeof EVIDENCE_CATEGORIES)[number];
 

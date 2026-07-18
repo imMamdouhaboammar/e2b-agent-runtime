@@ -9,6 +9,7 @@ import { TerminalSessionManager } from '../terminal/terminal-manager.js';
 import { CodingWorkspaceOrchestrator } from '../workspace/workspace-orchestrator.js';
 import { registerPhase4Tools } from './tools/phase4-tools.js';
 import { registerPhase5Tools } from './tools/phase5-tools.js';
+import { registerPhase6Tools } from './tools/phase6-tools.js';
 import { loadControllerConfig } from '../config.js';
 
 
@@ -317,6 +318,13 @@ export function createControllerMcpServer(
   // Attach Phase 5 Coding Workflow Engine Tools
   try {
     registerPhase5Tools(server);
+  } catch (err) {
+    // Non-fatal fallback
+  }
+
+  // Attach Phase 6 Browser & UI Verification Tools
+  try {
+    registerPhase6Tools(server);
   } catch (err) {
     // Non-fatal fallback
   }
