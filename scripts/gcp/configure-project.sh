@@ -31,6 +31,9 @@ gcloud services enable \
 echo "Verifying enabled services..."
 gcloud services list --enabled --filter="name:(run.googleapis.com OR artifactregistry.googleapis.com OR cloudbuild.googleapis.com OR secretmanager.googleapis.com)" --project="$PROJECT_ID"
 
+echo "Sleeping 20 seconds to allow newly enabled APIs to fully propagate globally..."
+sleep 20
+
 echo "=== [2/3] Creating Staging Artifact Registry ==="
 if gcloud artifacts repositories list --location="$REGION" --project="$PROJECT_ID" --format="value(name)" | grep -q "e2b-agent-runtime"; then
   echo "Artifact Registry repository 'e2b-agent-runtime' already exists."
