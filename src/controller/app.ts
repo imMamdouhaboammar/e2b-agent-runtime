@@ -80,9 +80,9 @@ export function createControllerApp(
 
     res.status(200).json({
       issuer: baseUrl,
-      authorization_endpoint: `${supabaseUrl}/oauth/authorize`,
-      token_endpoint: `${supabaseUrl}/oauth/token`,
-      jwks_uri: `${supabaseUrl}/.well-known/jwks.json`,
+      authorization_endpoint: `${supabaseUrl}/auth/v1/oauth/authorize`,
+      token_endpoint: `${supabaseUrl}/auth/v1/oauth/token`,
+      jwks_uri: `${supabaseUrl}/auth/v1/.well-known/jwks.json`,
       registration_endpoint: `${baseUrl}/oauth/register`,
       scopes_supported: ['openid', 'email', 'profile'],
       response_types_supported: ['code'],

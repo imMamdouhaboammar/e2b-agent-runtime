@@ -377,7 +377,7 @@ export function renderLoginPage(
     const supabaseUrl = '${supabaseUrl}';
     const supabaseAnonKey = '${supabaseAnonKey}';
     const pendingAuthId = '${pendingAuthId}';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
     const form = document.getElementById('login-form');
     const emailInput = document.getElementById('email');
@@ -426,7 +426,7 @@ export function renderLoginPage(
     }
 
     // Capture auth state changes in case of magic links
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         await handleSessionExchange(session);
       }
@@ -439,7 +439,7 @@ export function renderLoginPage(
       errorAlert.style.display = 'none';
 
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
           email: emailInput.value,
           password: passwordInput.value,
         });
@@ -467,7 +467,7 @@ export function renderLoginPage(
       errorAlert.style.display = 'none';
 
       try {
-        const { error } = await supabase.auth.signInWithOtp({
+        const { error } = await supabaseClient.auth.signInWithOtp({
           email: emailInput.value,
           options: {
             emailRedirectTo: window.location.origin + '/auth/callback' + (pendingAuthId ? '?authorization_id=' + pendingAuthId : ''),
@@ -772,7 +772,7 @@ export function renderSignupPage(
     const supabaseUrl = '${supabaseUrl}';
     const supabaseAnonKey = '${supabaseAnonKey}';
     const pendingAuthId = '${pendingAuthId}';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
     const form = document.getElementById('signup-form');
     const fullnameInput = document.getElementById('fullname');
@@ -826,7 +826,7 @@ export function renderSignupPage(
       errorAlert.style.display = 'none';
 
       try {
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await supabaseClient.auth.signUp({
           email: emailInput.value,
           password: passwordInput.value,
           options: {
@@ -888,7 +888,7 @@ export function renderForgotPasswordPage(
   const inlineScript = `
     const supabaseUrl = '${supabaseUrl}';
     const supabaseAnonKey = '${supabaseAnonKey}';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
     const form = document.getElementById('forgot-form');
     const emailInput = document.getElementById('email');
@@ -915,7 +915,7 @@ export function renderForgotPasswordPage(
       errorAlert.style.display = 'none';
 
       try {
-        const { error } = await supabase.auth.resetPasswordForEmail(emailInput.value, {
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(emailInput.value, {
           redirectTo: window.location.origin + '/reset-password',
         });
 
@@ -959,7 +959,7 @@ export function renderResetPasswordPage(
   const inlineScript = `
     const supabaseUrl = '${supabaseUrl}';
     const supabaseAnonKey = '${supabaseAnonKey}';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+    const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
     const form = document.getElementById('reset-form');
     const passwordInput = document.getElementById('password');
@@ -986,7 +986,7 @@ export function renderResetPasswordPage(
       errorAlert.style.display = 'none';
 
       try {
-        const { error } = await supabase.auth.updateUser({
+        const { error } = await supabaseClient.auth.updateUser({
           password: passwordInput.value,
         });
 
