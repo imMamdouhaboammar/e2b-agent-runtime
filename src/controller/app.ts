@@ -1,5 +1,5 @@
 import cors from 'cors';
-import express, { type Express, type Request, type Response } from 'express';
+import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createClient } from '@supabase/supabase-js';
 import type { ControllerConfig } from '../config.js';
@@ -210,9 +210,154 @@ export function createControllerApp(
     res.status(200).send(html);
   });
 
+  app.get('/signup', (req: Request, res: Response) => {
+    const authorization_id = (req.query.authorization_id as string) || '';
+    const html = ui.renderSignupPage(supabaseUrl, supabaseAnonKey, authorization_id);
+    res.status(200).send(html);
+  });
+
+  app.get('/forgot-password', (req: Request, res: Response) => {
+    const html = ui.renderForgotPasswordPage(supabaseUrl, supabaseAnonKey);
+    res.status(200).send(html);
+  });
+
+  app.get('/reset-password', (req: Request, res: Response) => {
+    const html = ui.renderResetPasswordPage(supabaseUrl, supabaseAnonKey);
+    res.status(200).send(html);
+  });
+
   app.get('/auth/callback', (req: Request, res: Response) => {
     const html = ui.renderAuthCallbackPage();
     res.status(200).send(html);
+  });
+
+  app.get('/admin/users', async (req: Request, res: Response) => {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      res.redirect('/login');
+      return;
+    }
+
+    const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
+    if (!dbUrl) {
+      res.status(501).send(ui.renderBaseHtml('Not Supported', '<div class="card"><h1>Not Configured</h1><p class="subtitle">Database is not configured for user management.</p></div>'));
+      return;
+    }
+
+    try {
+      // 1. Verify current user's role
+      const checkRoleRes = await query(
+        `SELECT role FROM public.runtime_memberships WHERE user_id = $1`,
+        [user.id],
+        dbUrl
+      );
+      const role = checkRoleRes.rowCount && checkRoleRes.rowCount > 0 ? checkRoleRes.rows[0].role : 'viewer';
+      if (role !== 'owner' && role !== 'admin') {
+        res.status(403).send(ui.renderBaseHtml('Forbidden', '<div class="card"><h1>Forbidden</h1><p class="subtitle">You are not authorized to view this page.</p></div>'));
+        return;
+      }
+
+      // 2. Retrieve all system users
+      const usersRes = await query(
+        `SELECT 
+          u.id as user_id, 
+          u.email, 
+          u.created_at,
+          COALESCE(m.role, 'viewer') as role, 
+          COALESCE(m.status, 'invited') as status, 
+          COALESCE(p.display_name, '') as display_name
+         FROM auth.users u
+         LEFT JOIN public.runtime_memberships m ON u.id = m.user_id
+         LEFT JOIN public.runtime_profiles p ON u.id = p.user_id
+         ORDER BY u.created_at DESC`,
+        [],
+        dbUrl
+      );
+
+      const html = ui.renderAdminUsersPage(usersRes.rows, role);
+      res.status(200).send(html);
+    } catch (err: any) {
+      logger.error('Failed to load admin users view', { error: err.message });
+      res.status(500).send(ui.renderBaseHtml('Error', '<div class="card"><h1>Internal Error</h1><p class="subtitle">Failed to load platform users.</p></div>'));
+    }
+  });
+
+  app.post('/api/admin/users/:userId/membership', async (req: Request, res: Response) => {
+    const currentUser = await getAuthenticatedUser(req);
+    if (!currentUser) {
+      res.status(401).json({ error: 'UNAUTHORIZED', message: 'You must be signed in to perform this action.' });
+      return;
+    }
+
+    const { userId } = req.params;
+    const { role, status } = req.body;
+    const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
+
+    if (!dbUrl) {
+      res.status(501).json({ error: 'NOT_IMPLEMENTED', message: 'Database is not configured.' });
+      return;
+    }
+
+    try {
+      // 1. Verify current user's role
+      const checkRoleRes = await query(
+        `SELECT role FROM public.runtime_memberships WHERE user_id = $1`,
+        [currentUser.id],
+        dbUrl
+      );
+      const currentUserRole = checkRoleRes.rowCount && checkRoleRes.rowCount > 0 ? checkRoleRes.rows[0].role : 'viewer';
+      if (currentUserRole !== 'owner' && currentUserRole !== 'admin') {
+        res.status(403).json({ error: 'FORBIDDEN', message: 'You are not authorized to manage memberships.' });
+        return;
+      }
+
+      // 2. Update membership values
+      if (role && status) {
+        await query(
+          `INSERT INTO public.runtime_memberships (user_id, role, status)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (user_id) 
+           DO UPDATE SET role = $2, status = $3, updated_at = NOW()`,
+          [userId, role, status],
+          dbUrl
+        );
+      } else if (role) {
+        await query(
+          `INSERT INTO public.runtime_memberships (user_id, role, status)
+           VALUES ($1, $2, 'invited')
+           ON CONFLICT (user_id) 
+           DO UPDATE SET role = $2, updated_at = NOW()`,
+          [userId, role],
+          dbUrl
+        );
+      } else if (status) {
+        await query(
+          `INSERT INTO public.runtime_memberships (user_id, role, status)
+           VALUES ($1, 'viewer', $2)
+           ON CONFLICT (user_id) 
+           DO UPDATE SET status = $2, updated_at = NOW()`,
+          [userId, status],
+          dbUrl
+        );
+      }
+
+      res.status(200).json({ success: true });
+    } catch (err: any) {
+      logger.error('Failed to update membership via API', { error: err.message });
+      res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to update membership.' });
+    }
+  });
+
+  app.post('/api/diagnostics/report-crash', (req: Request, res: Response) => {
+    const { context, message, stack, url, userAgent } = req.body;
+    logger.warn('Client-side exception reported:', {
+      context,
+      message,
+      stack,
+      url,
+      userAgent,
+    });
+    res.status(204).end();
   });
 
   // Local helper to parse cookies securely
@@ -577,8 +722,11 @@ export function createControllerApp(
     });
   });
 
-  // Protected MCP HTTP Endpoint
-  const authMiddleware = createAuthMiddleware(config.mcpAccessToken);
+  const authMiddleware = createAuthMiddleware(
+    config.mcpAccessToken,
+    config.supabaseJwksUrl,
+    config.supabaseOAuthIssuer
+  );
 
   app.all('/mcp', authMiddleware, (req: Request, res: Response) => {
     if (isDraining) {
@@ -608,6 +756,50 @@ export function createControllerApp(
         });
       }
     });
+  });
+
+  // --- Global Express Error Handling Middleware (Anti-Silent Failures) ---
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+    logger.error('Unhandled Controller Request Exception:', {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : null,
+      path: req.path,
+      method: req.method,
+    });
+
+    if (res.headersSent) {
+      return;
+    }
+
+    if (req.accepts('html')) {
+      const html = ui.renderBaseHtml(
+        'Server Error',
+        `
+        <div class="card" style="max-width: 550px; border: 1px solid rgba(239, 68, 68, 0.35); border-top: 1px solid rgba(239, 68, 68, 0.55); box-shadow: 0 0 40px rgba(239, 68, 68, 0.15);">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="width: 48px; height: 48px; background: rgba(239, 68, 68, 0.15); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; font-size: 1.5rem; font-weight: bold;">!</div>
+            <h2 style="font-size: 1.5rem; margin: 0; background: linear-gradient(135deg, #ffffff 40%, #fca5a5 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Internal Server Error</h2>
+          </div>
+          <p style="color: #94a3b8; font-size: 0.95rem; margin-bottom: 1rem; line-height: 1.5;">An unexpected exception occurred while processing this request. Silent failure was intercepted successfully:</p>
+          <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 1rem; font-family: monospace; font-size: 0.825rem; color: #fca5a5; overflow-y: auto; max-height: 200px; margin-bottom: 1.5rem; white-space: pre-wrap; word-break: break-all;">
+            <strong>Path</strong>: ${req.path}<br><br>
+            <strong>Error</strong>: ${err.message || String(err)}<br><br>
+            <strong>Stack</strong>: ${err.stack || 'No trace available'}
+          </div>
+          <div style="display: flex; gap: 1rem;">
+            <a href="/" class="btn" style="flex: 1; text-align: center; text-decoration: none; line-height: 2.5; display: block; border-radius: 12px;">Go to Safety</a>
+            <button onclick="window.location.reload();" class="btn btn-secondary" style="flex: 1;">Retry Request</button>
+          </div>
+        </div>
+        `
+      );
+      res.status(500).send(html);
+    } else {
+      res.status(500).json({
+        error: 'INTERNAL_SERVER_ERROR',
+        message: err.message || 'An unexpected error occurred.',
+      });
+    }
   });
 
   return app;

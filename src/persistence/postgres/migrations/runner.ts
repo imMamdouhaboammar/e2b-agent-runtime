@@ -2,6 +2,8 @@ import pg from 'pg';
 import { getDbPool } from '../client.js';
 import { logger } from '../../../shared/logger.js';
 import { INITIAL_SCHEMA_SQL } from './0001_initial_schema.js';
+import { SUPABASE_OAUTH_SCHEMA_SQL } from './0002_supabase_oauth_schema.js';
+import { AUTH_TRIGGER_AND_ADMIN_SQL } from './0003_auth_trigger_and_admin.js';
 
 // Unique lock ID for migration advisory lock
 const MIGRATION_LOCK_ID = 1784365276;
@@ -15,6 +17,8 @@ export interface MigrationStatus {
 // Static definition of migrations to avoid tsc / compile SQL assets discovery problems in built dist/ runtime
 const MIGRATIONS = [
   { name: '0001_initial_schema.sql', sql: INITIAL_SCHEMA_SQL },
+  { name: '0002_supabase_oauth_schema.sql', sql: SUPABASE_OAUTH_SCHEMA_SQL },
+  { name: '0003_auth_trigger_and_admin.sql', sql: AUTH_TRIGGER_AND_ADMIN_SQL },
 ];
 
 export async function runMigrations(databaseUrl?: string): Promise<void> {

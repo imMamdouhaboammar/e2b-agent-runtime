@@ -4,16 +4,6 @@ import * as jose from 'jose';
 import { logger } from '../shared/logger.js';
 import * as db from '../persistence/postgres/client.js';
 
-const JWKS_URL = 'https://lqekyrkxnxqtclhkaknm.supabase.co/auth/v1/.well-known/jwks.json';
-let jwksKeys: any = null;
-
-function getJwks() {
-  if (!jwksKeys) {
-    jwksKeys = jose.createRemoteJWKSet(new URL(JWKS_URL));
-  }
-  return jwksKeys;
-}
-
 export function timingSafeTokenMatch(providedToken: string, expectedToken: string): boolean {
   if (!providedToken || !expectedToken) return false;
 
@@ -31,8 +21,17 @@ export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-export function createAuthMiddleware(expectedToken: string) {
+export function createAuthMiddleware(
+  expectedToken: string,
+  supabaseJwksUrl?: string,
+  supabaseOAuthIssuer?: string
+) {
   const useDb = !!(process.env.DATABASE_URL || process.env.TEST_DB_URL);
+  const jwksUrl = supabaseJwksUrl || 'https://lqekyrkxnxqtclhkaknm.supabase.co/auth/v1/.well-known/jwks.json';
+  const issuer = supabaseOAuthIssuer || 'https://lqekyrkxnxqtclhkaknm.supabase.co/auth/v1';
+
+  // Remote JWK Set caching instance per middleware initialization
+  const jwksKeys = jose.createRemoteJWKSet(new URL(jwksUrl));
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const authHeader = req.headers.authorization;
@@ -59,9 +58,9 @@ export function createAuthMiddleware(expectedToken: string) {
 
     if (providedToken.split('.').length === 3) {
       try {
-        const jwks = getJwks();
-        const verifyRes = await jose.jwtVerify(providedToken, jwks, {
-          issuer: 'https://lqekyrkxnxqtclhkaknm.supabase.co/auth/v1',
+        const verifyRes = await jose.jwtVerify(providedToken, jwksKeys, {
+          issuer: issuer,
+          audience: 'authenticated', // Secure verified audience verification
         });
         payload = verifyRes.payload;
         isJwt = true;

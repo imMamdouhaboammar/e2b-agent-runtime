@@ -35,6 +35,19 @@ export interface ControllerConfig {
   workspaceIdleTimeoutMs: number;
   workspaceMaxLifetimeMs: number;
   databaseUrl?: string;
+  supabaseUrl: string;
+  supabasePublishableKey: string;
+  supabaseSecretKey: string;
+  supabaseJwksUrl: string;
+  supabaseOAuthIssuer: string;
+  authSiteUrl?: string;
+  authAllowPublicSignup: boolean;
+  authRequireEmailConfirmation: boolean;
+  authLoginMagicLinkEnabled: boolean;
+  authSignupMagicLinkEnabled: boolean;
+  authPasswordResetEnabled: boolean;
+  mcpAuthMode: 'jwt' | 'legacy';
+  mcpLegacyBearerEnabled: boolean;
 }
 
 const controllerConfigSchema = z.object({
@@ -189,6 +202,61 @@ const controllerConfigSchema = z.object({
     .string()
     .optional()
     .transform((val) => (val ? Number.parseInt(val, 10) : 3600000)),
+  SUPABASE_URL: z
+    .string({
+      required_error: 'SUPABASE_URL environment variable is required.',
+    })
+    .url('SUPABASE_URL must be a valid URL.'),
+  SUPABASE_PUBLISHABLE_KEY: z
+    .string({
+      required_error: 'SUPABASE_PUBLISHABLE_KEY environment variable is required.',
+    })
+    .min(1, 'SUPABASE_PUBLISHABLE_KEY cannot be empty.'),
+  SUPABASE_SECRET_KEY: z
+    .string({
+      required_error: 'SUPABASE_SECRET_KEY environment variable is required.',
+    })
+    .min(1, 'SUPABASE_SECRET_KEY cannot be empty.'),
+  SUPABASE_JWKS_URL: z
+    .string()
+    .optional()
+    .transform((val) => val || ''),
+  SUPABASE_OAUTH_ISSUER: z
+    .string()
+    .optional()
+    .transform((val) => val || ''),
+  AUTH_SITE_URL: z
+    .string()
+    .optional()
+    .transform((val) => val || ''),
+  AUTH_ALLOW_PUBLIC_SIGNUP: z
+    .string()
+    .optional()
+    .transform((val) => val === undefined || val.toLowerCase() === 'true'),
+  AUTH_REQUIRE_EMAIL_CONFIRMATION: z
+    .string()
+    .optional()
+    .transform((val) => val === undefined || val.toLowerCase() === 'true'),
+  AUTH_LOGIN_MAGIC_LINK_ENABLED: z
+    .string()
+    .optional()
+    .transform((val) => val === undefined || val.toLowerCase() === 'true'),
+  AUTH_SIGNUP_MAGIC_LINK_ENABLED: z
+    .string()
+    .optional()
+    .transform((val) => val === undefined || val.toLowerCase() === 'true'),
+  AUTH_PASSWORD_RESET_ENABLED: z
+    .string()
+    .optional()
+    .transform((val) => val === undefined || val.toLowerCase() === 'true'),
+  MCP_AUTH_MODE: z
+    .enum(['jwt', 'legacy'])
+    .optional()
+    .default('jwt'),
+  MCP_LEGACY_BEARER_ENABLED: z
+    .string()
+    .optional()
+    .transform((val) => val === undefined || val.toLowerCase() === 'true'),
 });
 
 export function loadControllerConfig(
@@ -232,10 +300,24 @@ export function loadControllerConfig(
     workspaceIdleTimeoutMs: result.data.WORKSPACE_IDLE_TIMEOUT_MS,
     workspaceMaxLifetimeMs: result.data.WORKSPACE_MAX_LIFETIME_MS,
     databaseUrl: result.data.DATABASE_URL,
+    supabaseUrl: result.data.SUPABASE_URL,
+    supabasePublishableKey: result.data.SUPABASE_PUBLISHABLE_KEY,
+    supabaseSecretKey: result.data.SUPABASE_SECRET_KEY,
+    supabaseJwksUrl: result.data.SUPABASE_JWKS_URL || `${result.data.SUPABASE_URL}/auth/v1/.well-known/jwks.json`,
+    supabaseOAuthIssuer: result.data.SUPABASE_OAUTH_ISSUER || `${result.data.SUPABASE_URL}/auth/v1`,
+    authSiteUrl: result.data.AUTH_SITE_URL || undefined,
+    authAllowPublicSignup: result.data.AUTH_ALLOW_PUBLIC_SIGNUP,
+    authRequireEmailConfirmation: result.data.AUTH_REQUIRE_EMAIL_CONFIRMATION,
+    authLoginMagicLinkEnabled: result.data.AUTH_LOGIN_MAGIC_LINK_ENABLED,
+    authSignupMagicLinkEnabled: result.data.AUTH_SIGNUP_MAGIC_LINK_ENABLED,
+    authPasswordResetEnabled: result.data.AUTH_PASSWORD_RESET_ENABLED,
+    mcpAuthMode: result.data.MCP_AUTH_MODE,
+    mcpLegacyBearerEnabled: result.data.MCP_LEGACY_BEARER_ENABLED,
   };
 
   logger.registerSecret(config.apiKey);
   logger.registerSecret(config.mcpAccessToken);
+  logger.registerSecret(config.supabaseSecretKey);
   if (config.databaseUrl) {
     logger.registerSecret(config.databaseUrl);
   }

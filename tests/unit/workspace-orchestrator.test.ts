@@ -6,6 +6,9 @@ describe('CodingWorkspaceOrchestrator Unit Tests', () => {
   const config = loadControllerConfig({
     E2B_API_KEY: 'e2b_0000000000000000000000000000000000000000',
     MCP_ACCESS_TOKEN: 'mock_token',
+    SUPABASE_URL: 'https://example-supabase-project.supabase.co',
+    SUPABASE_PUBLISHABLE_KEY: 'sb_pub_dummy_key_to_satisfy_github_push_protection',
+    SUPABASE_SECRET_KEY: 'sb_sec_dummy_key_to_satisfy_github_push_protection',
   });
 
   const mockWorkerManager: any = {
