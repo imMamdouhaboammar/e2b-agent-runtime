@@ -1,0 +1,32 @@
+{
+  "policies": {
+    "default_clearance": "confirm_once_per_session",
+    "classifications": {
+      "read-only": {
+        "requires_confirmation": false,
+        "clearance_level": "allow"
+      },
+      "state-changing": {
+        "requires_confirmation": true,
+        "confirmation_message": "This action will execute a state-changing terminal command or filesystem operation inside the secure worker container.",
+        "clearance_level": "confirm_always"
+      },
+      "external-write": {
+        "requires_confirmation": true,
+        "confirmation_message": "WARNING: This action performs an external write (e.g. pushing a feature branch or opening a Pull Request). Proceed with caution.",
+        "clearance_level": "confirm_always"
+      },
+      "destructive": {
+        "requires_confirmation": true,
+        "confirmation_message": "CAUTION: This action is destructive and irreversible (e.g. terminating/wiping a sandbox). Ensure all critical artifacts have been saved.",
+        "clearance_level": "confirm_always"
+      }
+    },
+    "tool_overrides": {
+      "runtime_destroy_all_sessions": {
+        "requires_confirmation": true,
+        "confirmation_parameter": "confirm"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "E2B Agent Runtime Controller",
+  "version": "0.0.1",
+  "description": "Securely run Remote MCP tool workflows within isolated E2B coding sandboxes.",
+  "developer": {
+    "name": "imMamdouhaboammar",
+    "website": "https://github.com/imMamdouhaboammar/e2b-agent-runtime"
+  },
+  "auth": {
+    "type": "service_http",
+    "authorization_type": "bearer"
+  },
+  "endpoints": {
+    "mcp": "/mcp"
+  },
+  "privacy_policy_url": "https://github.com/imMamdouhaboammar/e2b-agent-runtime/blob/main/chatgpt-app/privacy.md",
+  "support_url": "https://github.com/imMamdouhaboammar/e2b-agent-runtime/blob/main/chatgpt-app/support.md"
+}

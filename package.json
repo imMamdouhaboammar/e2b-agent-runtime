@@ -71,7 +71,19 @@
     "test:integration:provider-parity": "vitest run tests/integration/providerParity.test.ts",
     "test:integration:agents-mcp-readonly": "vitest run tests/integration/agentsMcpReadonly.test.ts",
     "example:agents-mcp-readonly": "tsx examples/openaiAgentsMcpClient.ts --readonly",
-    "example:agents-mcp-workspace": "tsx examples/openaiAgentsMcpClient.ts --workspace"
+    "example:agents-mcp-workspace": "tsx examples/openaiAgentsMcpClient.ts --workspace",
+    "api:snapshot": "tsx src/scripts/api-snapshot.ts",
+    "api:compatibility": "tsx src/scripts/api-compatibility.ts",
+    "api:breaking-check": "tsx src/scripts/api-breaking-check.ts",
+    "security:credential-boundary": "tsx src/scripts/security-credential-boundary.ts",
+    "security:abuse-tests": "tsx src/scripts/security-abuse-tests.ts",
+    "security:cleanup-verification": "tsx src/scripts/security-cleanup-verification.ts",
+    "security:final-audit": "tsx src/scripts/security-final-audit.ts",
+    "release:evaluate": "tsx src/scripts/release-evaluate.ts",
+    "release:report": "tsx src/scripts/release-report.ts",
+    "release:verify-metadata": "tsx src/scripts/release-verify-metadata.ts",
+    "test:unit:phase10": "vitest run tests/unit/phase10.test.ts",
+    "test:e2e:golden": "vitest run tests/e2e/goldenPath.test.ts"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.9.1",

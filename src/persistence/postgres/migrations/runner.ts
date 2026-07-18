@@ -1,8 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import pg from 'pg';
 import { getDbPool } from '../client.js';
 import { logger } from '../../../shared/logger.js';
+import { INITIAL_SCHEMA_SQL } from './0001_initial_schema.js';
 
 // Unique lock ID for migration advisory lock
 const MIGRATION_LOCK_ID = 1784365276;
@@ -12,6 +11,11 @@ export interface MigrationStatus {
   applied: boolean;
   appliedAt?: Date;
 }
+
+// Static definition of migrations to avoid tsc / compile SQL assets discovery problems in built dist/ runtime
+const MIGRATIONS = [
+  { name: '0001_initial_schema.sql', sql: INITIAL_SCHEMA_SQL },
+];
 
 export async function runMigrations(databaseUrl?: string): Promise<void> {
   const pool = getDbPool(databaseUrl);
@@ -30,45 +34,33 @@ export async function runMigrations(databaseUrl?: string): Promise<void> {
       );
     `);
 
-    // 2. Read migration files
-    const migrationsDir = path.resolve(
-      path.dirname(new URL(import.meta.url).pathname),
-      '.'
-    );
-    const files = fs
-      .readdirSync(migrationsDir)
-      .filter((f) => f.endsWith('.sql'))
-      .sort();
-
-    // 3. Get applied migrations
+    // 2. Get applied migrations
     const { rows } = await client.query<{ migration_name: string }>(
       'SELECT migration_name FROM schema_migrations'
     );
     const applied = new Set(rows.map((r) => r.migration_name));
 
-    for (const file of files) {
-      if (applied.has(file)) {
-        logger.debug(`Migration ${file} is already applied.`);
+    for (const migration of MIGRATIONS) {
+      if (applied.has(migration.name)) {
+        logger.debug(`Migration ${migration.name} is already applied.`);
         continue;
       }
 
-      logger.info(`Applying migration: ${file}`);
-      const filePath = path.join(migrationsDir, file);
-      const sql = fs.readFileSync(filePath, 'utf-8');
+      logger.info(`Applying migration: ${migration.name}`);
 
       // Execute migration inside a local transaction
       await client.query('BEGIN');
       try {
-        await client.query(sql);
+        await client.query(migration.sql);
         await client.query(
           'INSERT INTO schema_migrations (migration_name) VALUES ($1)',
-          [file]
+          [migration.name]
         );
         await client.query('COMMIT');
-        logger.info(`Migration ${file} applied successfully.`);
+        logger.info(`Migration ${migration.name} applied successfully.`);
       } catch (err: any) {
         await client.query('ROLLBACK');
-        logger.error(`Migration ${file} failed and was rolled back`, { error: err.message });
+        logger.error(`Migration ${migration.name} failed and was rolled back`, { error: err.message });
         throw err;
       }
     }
@@ -94,24 +86,15 @@ export async function getMigrationStatus(databaseUrl?: string): Promise<Migratio
       );
     `);
 
-    const migrationsDir = path.resolve(
-      path.dirname(new URL(import.meta.url).pathname),
-      '.'
-    );
-    const files = fs
-      .readdirSync(migrationsDir)
-      .filter((f) => f.endsWith('.sql'))
-      .sort();
-
     const { rows } = await client.query<{ migration_name: string; applied_at: Date }>(
       'SELECT migration_name, applied_at FROM schema_migrations'
     );
     const appliedMap = new Map(rows.map((r) => [r.migration_name, r.applied_at]));
 
-    return files.map((file) => ({
-      name: file,
-      applied: appliedMap.has(file),
-      appliedAt: appliedMap.get(file),
+    return MIGRATIONS.map((migration) => ({
+      name: migration.name,
+      applied: appliedMap.has(migration.name),
+      appliedAt: appliedMap.get(migration.name),
     }));
   } finally {
     client.release();
