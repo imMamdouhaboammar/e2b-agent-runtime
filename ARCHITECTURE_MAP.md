@@ -1,6 +1,60 @@
 # Architecture Map: E2B Agent Runtime
 
-An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using E2B Sandboxes, orchestrating disposable E2B Worker Sandboxes for safe tool execution, PTY terminal sessions, repository intelligence, task planning, evidence tracking, bounded repair cycles, checkpoints, diff review, and GitHub branch publication.
+An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using E2B Sandboxes, orchestrating disposable E2B Worker Sandboxes for safe tool execution, PTY terminal sessions, repository intelligence, task planning, evidence tracking, bounded repair cycles, checkpoints, diff review, GitHub branch publication, and **browser + UI verification via Playwright Chromium**.
+
+---
+
+## Phase 6 Browser & User-Interface Verification Architecture
+
+```mermaid
+flowchart TD
+    A[ChatGPT Web or MCP Client] -->|Remote MCP| B[Remote MCP Controller]
+
+    B --> PH6[Phase 6 Browser Engine]
+    PH6 --> BSM[Browser Session Manager]
+    PH6 --> NG[Navigation Guard]
+    PH6 --> PR[Preview Resolver]
+    PH6 --> PI[Page Inspector]
+    PH6 --> EC[Evidence Collector]
+    PH6 --> BA[Browser Actions]
+    PH6 --> BAS[Browser Assertions]
+    PH6 --> ACS[Accessibility Scanner]
+    PH6 --> AS[Artifact Store]
+    PH6 --> BFC[Browser Failure Classifier]
+    PH6 --> VCM[Verification Cycle Manager]
+
+    BSM --> PW[Playwright Chromium]
+    PW --> DS[Dev Server in E2B Worker]
+
+    NG -->|blocks| META[169.254.x.x / metadata.google.internal]
+    NG -->|blocks| SCHEMES[file: / data: / javascript:]
+    PR -->|resolves to| INTERNAL[http://127.0.0.1 port]
+
+    AS --> ARTDIR[/workspace/.agent-artifacts/browser/]
+    EC --> CONS[Console Buffer]
+    EC --> NETERR[Network Failure Buffer]
+    EC --> PGERR[Page Error Buffer]
+
+    BAS --> GATE[Completion Gate Evaluator]
+    VCM --> GATE
+```
+
+### Phase 6 Component Responsibilities
+
+| Component | File | Responsibility |
+|---|---|---|
+| **Browser Session Manager** | `src/browser/browser-session-manager.ts` | Playwright Chromium launch, isolated contexts, page lifecycle, session limits, mutex locking. |
+| **Navigation Guard** | `src/browser/navigation-guard.ts` | Scheme allowlist, credential blocking, metadata IP blocking, URL normalization, query token redaction. |
+| **URL Sanitizer** | `src/browser/url-sanitizer.ts` | Shared utility: redacts sensitive query parameter values (token, key, secret, etc.) from URLs. Used by NavigationGuard and EvidenceCollector. |
+| **Preview Resolver** | `src/browser/preview-resolver.ts` | Resolves `http://127.0.0.1:<port>` internal URLs; never leaks E2B traffic tokens. |
+| **Page Inspector** | `src/browser/page-inspector.ts` | Bounded structural/accessibility snapshots; opaque element refs; locator resolution (role, label, testId, css — XPath banned). |
+| **Browser Actions** | `src/browser/browser-actions.ts` | Click, fill (password redacted), press, select_option, check, upload_file (workspace path checks), wait_for. |
+| **Browser Assertions** | `src/browser/browser-assertions.ts` | Evaluates 14+ assertion types (url-equals, text-visible, element-count, element-hidden, title-contains, etc.) against real page state. |
+| **Evidence Collector** | `src/browser/evidence-collector.ts` | Console, page error, and network failure listeners with ring-buffer capping and secret redaction. |
+| **Accessibility Scanner** | `src/browser/accessibility-scanner.ts` | axe-core scans via `@axe-core/playwright` with bounded result count and structural fallback. |
+| **Artifact Store** | `src/browser/artifact-store.ts` | Screenshot & trace storage, SHA-256 integrity, short-lived pre-signed download URLs, retention enforcement. |
+| **Browser Failure Classifier** | `src/browser/browser-failure-classifier.ts` | Declarative rules-table classifier for 11 browser failure categories (DNS, TLS, timeout, locator-ambiguous, locator-not-found, assertion, hydration, JavaScript, accessibility, browser-crash, unknown). |
+| **Verification Cycle Manager** | `src/browser/verification-cycle-manager.ts` | Browser verification cycles bound to task head SHA; detects stale evidence when head moves mid-cycle. |
 
 ---
 
@@ -31,6 +85,12 @@ flowchart TD
 
 ## Component Index
 
+### Phase 6: Browser & UI Verification (`src/browser/`, `src/mcp/tools/phase6-tools.ts`)
+
+- **26 Remote MCP Tools**: registered on the Controller MCP server. Includes session lifecycle, navigation, page inspection, actions, assertions, evidence retrieval, failure classification, trace recording, artifact management, and verification cycles.
+- **4 Runtime Policies**: `browser-policy.json`, `navigation-policy.json`, `artifact-policy.json`, `accessibility-policy.json` — validated at startup via `pnpm browser:validate-policies`.
+- **Template Version**: `agent-coding-runtime-core:v0.2.0` — updated in `runtime-pack/MANIFEST.json` with Playwright `1.61.1` and Chromium `149.0.7827.55`.
+
 ### 1. Remote MCP Controller & Task Orchestration (`src/controller/`, `src/mcp/`, `src/workflow/`)
 - **Server**: Express HTTP + Streamable HTTP MCP server on port 3000.
 - **Authentication**: Bearer token (`MCP_ACCESS_TOKEN`).
@@ -51,7 +111,7 @@ flowchart TD
 
 ### 5. Checkpoints, Drift & Completion Gates (`src/workflow/checkpoint-manager.ts`, `src/workflow/diff-review.ts`, `src/workflow/completion-gate.ts`)
 - **Checkpoint Manager**: Compact, sanitized checkpoints using `SESSION_CHECKPOINT.md` format with content hashing. Resumes tasks with drift detection (`no-drift`, `local-head-moved`, `worktree-changed`, `branch-changed`, `worker-recreated`).
-- **Diff Review & Completion Gate**: Evaluates working tree diff against base SHA, flags secret findings, unplanned files, and debug artifacts. Blocks publication if required checks fail, worktree is dirty, or no commits exist. Generates structured PR handoff markdown using `PR_TEMPLATE.md`.
+- **Diff Review & Completion Gate**: Evaluates working tree diff against base SHA, flags secret findings, unplanned files, and debug artifacts. For web tasks, also checks browser verification gate. Blocks publication if required checks fail, worktree is dirty, or no commits exist.
 
 ### 6. Persistent PTY & Terminal Sessions (`src/terminal/`)
 - **Terminal Session Manager**: `terminal_open`, `terminal_exec`, `terminal_write`, `terminal_read`, `terminal_resize`, `terminal_send_signal`, `terminal_close`, `terminal_list`.
@@ -67,6 +127,7 @@ flowchart TD
 
 | Scope | Exposed Credentials | Allowed Operations |
 |---|---|---|
-| **Controller Sandbox** | `E2B_API_KEY`, `MCP_ACCESS_TOKEN`, `GITHUB_APP_PRIVATE_KEY` | Auth broker, task store, evidence ledger, repair manager, checkpoint persistence, worker lifecycle |
-| **Worker Sandbox** | Short-lived installation token passed inline per command | Local checkout, PTY interactive sessions, one-shot commands, dev servers, test execution, branch publication |
+| **Controller Sandbox** | `E2B_API_KEY`, `MCP_ACCESS_TOKEN`, `GITHUB_APP_PRIVATE_KEY` | Auth broker, task store, evidence ledger, repair manager, checkpoint persistence, worker lifecycle, browser session management |
+| **Worker Sandbox** | Short-lived installation token passed inline per command | Local checkout, PTY interactive sessions, one-shot commands, dev servers, test execution, branch publication, Playwright Chromium execution |
 | **MCP Client (ChatGPT)** | Bearer Token (`MCP_ACCESS_TOKEN`) | Direct control via Remote MCP tools. ChatGPT is the reasoning layer. No inner AI coding model is installed. |
+| **Browser Artifacts** | None exposed | Stored in `/workspace/.agent-artifacts/browser/` (outside git tree). Accessible only via short-lived pre-signed download URLs. |

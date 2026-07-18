@@ -278,3 +278,98 @@ export function loadWorkflowLimitsConfig(
   };
 }
 
+export interface BrowserConfig {
+  engine: string;
+  maxSessionsPerWorkspace: number;
+  maxPagesPerSession: number;
+  defaultTimeoutMs: number;
+  navigationTimeoutMs: number;
+  actionTimeoutMs: number;
+  sessionIdleTimeoutMs: number;
+  consoleBufferMaxItems: number;
+  networkBufferMaxItems: number;
+  pageErrorBufferMaxItems: number;
+  snapshotMaxBytes: number;
+  screenshotMaxBytes: number;
+  traceMaxBytes: number;
+  artifactTotalMaxBytes: number;
+  allowedSchemes: string[];
+  allowExternalNavigation: boolean;
+  allowFileUrls: boolean;
+  allowDataUrls: boolean;
+  allowJavascriptUrls: boolean;
+  captureConsole: boolean;
+  captureNetworkFailures: boolean;
+  capturePageErrors: boolean;
+  headless: boolean;
+  artifactRetentionMs: number;
+  downloadUrlTtlMs: number;
+  maxScreenshotsPerCycle: number;
+  maxTracesPerTask: number;
+  maxArtifactsPerTask: number;
+}
+
+export function loadBrowserConfig(
+  envOverride?: Record<string, string | undefined>
+): BrowserConfig {
+  const env = envOverride ?? process.env;
+  
+  const parseBool = (val: string | undefined, defaultVal: boolean): boolean => {
+    if (val === undefined || val === '') return defaultVal;
+    if (val.toLowerCase() === 'true' || val === '1') return true;
+    if (val.toLowerCase() === 'false' || val === '0') return false;
+    throw new Error(`Invalid boolean config value: ${val}`);
+  };
+
+  const parseNum = (val: string | undefined, defaultVal: number, min?: number, max?: number): number => {
+    if (val === undefined || val === '') return defaultVal;
+    const n = Number.parseInt(val, 10);
+    if (Number.isNaN(n)) throw new Error(`Invalid integer config value: ${val}`);
+    if (min !== undefined && n < min) throw new Error(`Config value ${n} below minimum ${min}`);
+    if (max !== undefined && n > max) throw new Error(`Config value ${n} above maximum ${max}`);
+    return n;
+  };
+
+  const engine = (env.BROWSER_ENGINE || 'chromium').toLowerCase();
+  if (engine !== 'chromium') {
+    throw new Error(`Unsupported browser engine: "${engine}". Only "chromium" is supported in Phase 6.`);
+  }
+
+  const allowedSchemes = (env.BROWSER_ALLOWED_SCHEMES || 'http,https')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  return {
+    engine,
+    maxSessionsPerWorkspace: parseNum(env.MAX_BROWSER_SESSIONS_PER_WORKSPACE, 2, 1, 10),
+    maxPagesPerSession: parseNum(env.MAX_PAGES_PER_BROWSER_SESSION, 5, 1, 20),
+    defaultTimeoutMs: parseNum(env.BROWSER_DEFAULT_TIMEOUT_MS, 30000, 1000, 300000),
+    navigationTimeoutMs: parseNum(env.BROWSER_NAVIGATION_TIMEOUT_MS, 60000, 1000, 300000),
+    actionTimeoutMs: parseNum(env.BROWSER_ACTION_TIMEOUT_MS, 30000, 1000, 300000),
+    sessionIdleTimeoutMs: parseNum(env.BROWSER_SESSION_IDLE_TIMEOUT_MS, 1800000, 60000, 86400000),
+    consoleBufferMaxItems: parseNum(env.BROWSER_CONSOLE_BUFFER_MAX_ITEMS, 1000, 10, 10000),
+    networkBufferMaxItems: parseNum(env.BROWSER_NETWORK_BUFFER_MAX_ITEMS, 2000, 10, 10000),
+    pageErrorBufferMaxItems: parseNum(env.BROWSER_PAGE_ERROR_BUFFER_MAX_ITEMS, 250, 5, 1000),
+    snapshotMaxBytes: parseNum(env.BROWSER_SNAPSHOT_MAX_BYTES, 262144, 1024, 5242880),
+    screenshotMaxBytes: parseNum(env.BROWSER_SCREENSHOT_MAX_BYTES, 5242880, 1024, 20971520),
+    traceMaxBytes: parseNum(env.BROWSER_TRACE_MAX_BYTES, 52428800, 1024, 209715200),
+    artifactTotalMaxBytes: parseNum(env.BROWSER_ARTIFACT_TOTAL_MAX_BYTES, 104857600, 1048576, 1073741824),
+    allowedSchemes,
+    allowExternalNavigation: parseBool(env.BROWSER_ALLOW_EXTERNAL_NAVIGATION, false),
+    allowFileUrls: parseBool(env.BROWSER_ALLOW_FILE_URLS, false),
+    allowDataUrls: parseBool(env.BROWSER_ALLOW_DATA_URLS, false),
+    allowJavascriptUrls: parseBool(env.BROWSER_ALLOW_JAVASCRIPT_URLS, false),
+    captureConsole: parseBool(env.BROWSER_CAPTURE_CONSOLE, true),
+    captureNetworkFailures: parseBool(env.BROWSER_CAPTURE_NETWORK_FAILURES, true),
+    capturePageErrors: parseBool(env.BROWSER_CAPTURE_PAGE_ERRORS, true),
+    headless: parseBool(env.BROWSER_HEADLESS, true),
+    artifactRetentionMs: parseNum(env.BROWSER_ARTIFACT_RETENTION_MS, 86400000, 60000, 604800000),
+    downloadUrlTtlMs: parseNum(env.BROWSER_ARTIFACT_DOWNLOAD_URL_TTL_MS, 600000, 10000, 3600000),
+    maxScreenshotsPerCycle: parseNum(env.BROWSER_MAX_SCREENSHOTS_PER_CYCLE, 20, 1, 100),
+    maxTracesPerTask: parseNum(env.BROWSER_MAX_TRACES_PER_TASK, 5, 1, 50),
+    maxArtifactsPerTask: parseNum(env.BROWSER_MAX_ARTIFACTS_PER_TASK, 100, 1, 1000),
+  };
+}
+
+

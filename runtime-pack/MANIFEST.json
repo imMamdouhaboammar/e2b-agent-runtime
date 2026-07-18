@@ -1,9 +1,11 @@
 {
-  "runtimeVersion": "0.1.0",
+  "runtimeVersion": "0.2.0",
   "skillsPackVersion": "1.0.0",
   "workflowSchemaVersion": "1",
   "templateName": "agent-coding-runtime-core",
-  "templateTag": "v0.1.0",
+  "templateTag": "v0.2.0",
+  "playwrightVersion": "1.61.1",
+  "browserEngine": "chromium",
   "mode": "pr-only",
-  "builtAt": "2026-07-18T12:36:00Z"
+  "builtAt": "2026-07-18T12:51:00Z"
 }

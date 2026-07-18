@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "artifact-policy",
+  "version": "1.0.0",
+  "artifactDirectory": "/workspace/.agent-artifacts/browser/",
+  "snapshotMaxBytes": 262144,
+  "screenshotMaxBytes": 5242880,
+  "traceMaxBytes": 52428800,
+  "artifactTotalMaxBytes": 104857600,
+  "artifactRetentionMs": 86400000,
+  "downloadUrlTtlMs": 600000,
+  "maxScreenshotsPerCycle": 20,
+  "maxTracesPerTask": 5,
+  "maxArtifactsPerTask": 100
+}
