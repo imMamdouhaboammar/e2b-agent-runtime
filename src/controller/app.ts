@@ -1,6 +1,6 @@
 import cors from 'cors';
 import express, { type Express, type Request, type Response } from 'express';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { createClient } from '@supabase/supabase-js';
 import type { ControllerConfig } from '../config.js';
 import { createControllerMcpServer } from '../mcp/create-server.js';
@@ -565,17 +565,14 @@ export function createControllerApp(
     }
   });
 
-  // Create MCP Server & Transport
-  const mcpServer = createControllerMcpServer(workerManager, registry);
-  const mcpTransport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => globalThis.crypto.randomUUID(),
-  });
-
-  mcpServer.connect(mcpTransport).catch((err) => {
-    logger.error('Failed to connect MCP server to StreamableHTTP transport', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
+  // Active SSE sessions Map
+  const sseSessions = new Map<
+    string,
+    {
+      transport: SSEServerTransport;
+      mcpServer: any;
+    }
+  >();
 
   // Protected MCP HTTP Endpoint
   const authMiddleware = createAuthMiddleware(config.mcpAccessToken);
@@ -591,19 +588,56 @@ export function createControllerApp(
 
     if (req.method === 'GET') {
       res.setHeader('X-Accel-Buffering', 'no');
+
+      const transport = new SSEServerTransport('/mcp', res);
+      const server = createControllerMcpServer(workerManager, registry);
+
+      server.connect(transport).then(() => {
+        sseSessions.set(transport.sessionId, { transport, mcpServer: server });
+        logger.info('SSE transport connected and registered', { sessionId: transport.sessionId });
+      }).catch((err) => {
+        logger.error('Failed to connect MCP server to SSE transport', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to establish SSE transport connection.' });
+        }
+      });
+
+      transport.onclose = () => {
+        logger.info('SSE transport connection closed', { sessionId: transport.sessionId });
+        sseSessions.delete(transport.sessionId);
+      };
+
+      return;
     }
 
-    mcpTransport.handleRequest(req, res).catch((err) => {
-      logger.error('Error handling StreamableHTTP MCP request', {
-        error: err instanceof Error ? err.message : String(err),
-      });
-      if (!res.headersSent) {
-        res.status(500).json({
-          error: 'INTERNAL_ERROR',
-          message: 'An internal error occurred while processing MCP transport request.',
-        });
+    if (req.method === 'POST') {
+      const sessionId = req.query.sessionId as string;
+      if (!sessionId) {
+        res.status(400).json({ error: 'BAD_REQUEST', message: 'Missing sessionId query parameter.' });
+        return;
       }
-    });
+
+      const session = sseSessions.get(sessionId);
+      if (!session) {
+        res.status(404).json({ error: 'SESSION_NOT_FOUND', message: 'SSE session not found or expired.' });
+        return;
+      }
+
+      session.transport.handlePostMessage(req, res, req.body).catch((err) => {
+        logger.error('Error handling SSE POST message', {
+          sessionId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to process SSE message.' });
+        }
+      });
+      return;
+    }
+
+    res.status(405).json({ error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed. Use GET or POST.' });
   });
 
   return app;
