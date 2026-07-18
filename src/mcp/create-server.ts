@@ -4,6 +4,11 @@ import type { E2BWorkerManager } from '../runtime/e2b-worker-manager.js';
 import type { SessionRegistry } from '../runtime/session-registry.js';
 import { ControllerError, formatSafeErrorMessage } from '../shared/errors.js';
 import { createRepositoryTools } from './tools/repository-tools.js';
+import { SkillsRuntimeRegistry } from '../runtime/skills-runtime.js';
+import { TerminalSessionManager } from '../terminal/terminal-manager.js';
+import { CodingWorkspaceOrchestrator } from '../workspace/workspace-orchestrator.js';
+import { registerPhase4Tools } from './tools/phase4-tools.js';
+import { loadControllerConfig } from '../config.js';
 
 export function createControllerMcpServer(
   workerManager: E2BWorkerManager,
@@ -279,6 +284,32 @@ export function createControllerMcpServer(
         }
       }
     );
+  }
+
+  // Attach Phase 4 Coding Workspace Tools
+  try {
+    const config = loadControllerConfig({
+      E2B_API_KEY: process.env.E2B_API_KEY || 'mock_api_key',
+      MCP_ACCESS_TOKEN: process.env.MCP_ACCESS_TOKEN || 'mock_access_token',
+    });
+
+    const skillsRegistry = new SkillsRuntimeRegistry();
+    const terminalManager = new TerminalSessionManager(config.maxTerminalsPerWorkspace);
+    const workspaceOrchestrator = new CodingWorkspaceOrchestrator(
+      config,
+      undefined,
+      workerManager,
+      terminalManager,
+      skillsRegistry
+    );
+
+    registerPhase4Tools(server, {
+      skillsRegistry,
+      terminalManager,
+      workspaceOrchestrator,
+    });
+  } catch (err) {
+    // Non-fatal fallback
   }
 
   return server;
