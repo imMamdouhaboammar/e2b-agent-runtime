@@ -391,6 +391,26 @@ export function createControllerApp(
     }
   }
 
+  // Local helper to create a user-authenticated Supabase client
+  async function getUserSupabaseClient(req: Request) {
+    const cookies = parseCookies(req);
+    const token = cookies['sb-access-token'];
+    if (!token) return null;
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
+    const { error } = await userClient.auth.setSession({ access_token: token, refresh_token: 'dummy-refresh-token' });
+    if (error) {
+      logger.error('Failed to set user session on dynamic client', { error: error.message });
+      return null;
+    }
+    return userClient;
+  }
+
   app.get('/oauth/consent', async (req: Request, res: Response) => {
     const authId = (req.query.authorization_id as string) || '';
     if (!authId) {
@@ -404,10 +424,16 @@ export function createControllerApp(
       return;
     }
 
+    const userClient = await getUserSupabaseClient(req);
+    if (!userClient) {
+      res.status(401).send(ui.renderBaseHtml('Error', '<div class="card"><h1>Error</h1><p class="subtitle">Session invalid or expired. Please login again.</p></div>'));
+      return;
+    }
+
     try {
-      const { data, error } = await supabaseAdmin.auth.oauth.getAuthorizationDetails(authId);
+      const { data, error } = await userClient.auth.oauth.getAuthorizationDetails(authId);
       if (error || !data) {
-        logger.error('Failed to get authorization details from Supabase', { error: error.message });
+        logger.error('Failed to get authorization details from Supabase', { error: error?.message || String(error) });
         res.status(400).send(ui.renderBaseHtml('Error', '<div class="card"><h1>Error</h1><p class="subtitle">Failed to load authorization context or invalid authorization ID.</p></div>'));
         return;
       }
@@ -442,11 +468,17 @@ export function createControllerApp(
       return;
     }
 
+    const userClient = await getUserSupabaseClient(req);
+    if (!userClient) {
+      res.status(401).send(ui.renderBaseHtml('Error', '<div class="card"><h1>Error</h1><p class="subtitle">Session invalid or expired. Please login again.</p></div>'));
+      return;
+    }
+
     try {
-      const { data: detailsData } = await supabaseAdmin.auth.oauth.getAuthorizationDetails(authId);
+      const { data: detailsData } = await userClient.auth.oauth.getAuthorizationDetails(authId);
       const details = detailsData as any;
 
-      const { data, error } = await supabaseAdmin.auth.oauth.approveAuthorization(authId);
+      const { data, error } = await userClient.auth.oauth.approveAuthorization(authId);
       if (error || !data || !data.redirect_url) {
         logger.error('Failed to approve authorization with Supabase', { error: error?.message || String(error) });
         res.status(400).send(ui.renderBaseHtml('Error', '<div class="card"><h1>Error</h1><p class="subtitle">Failed to approve connection request.</p></div>'));
@@ -505,8 +537,14 @@ export function createControllerApp(
       return;
     }
 
+    const userClient = await getUserSupabaseClient(req);
+    if (!userClient) {
+      res.status(401).send(ui.renderBaseHtml('Error', '<div class="card"><h1>Error</h1><p class="subtitle">Session invalid or expired. Please login again.</p></div>'));
+      return;
+    }
+
     try {
-      const { data, error } = await supabaseAdmin.auth.oauth.denyAuthorization(authId);
+      const { data, error } = await userClient.auth.oauth.denyAuthorization(authId);
       if (error || !data || !data.redirect_url) {
         logger.error('Failed to deny authorization with Supabase', { error: error?.message || String(error) });
         res.status(400).send(ui.renderBaseHtml('Error', '<div class="card"><h1>Error</h1><p class="subtitle">Failed to process denial redirect.</p></div>'));
