@@ -3,7 +3,7 @@ import { DirectE2bSession } from '../../src/sandbox/providers/directE2b/session.
 import { OpenAIE2bSession } from '../../src/sandbox/providers/openaiAgentsE2b/session.js';
 
 describe('Sandbox Provider Contract Mock Tests', () => {
-  it('DirectE2bSession wraps and calls commands.run correctly', async () => {
+  it('should delegate command execution and file reading to E2B native client', async () => {
     const mockRun = vi.fn().mockResolvedValue({
       stdout: 'hello',
       stderr: '',
@@ -40,7 +40,7 @@ describe('Sandbox Provider Contract Mock Tests', () => {
     expect(fileContent.toString()).toBe('file content');
   });
 
-  it('OpenAIE2bSession wraps and calls shell.run correctly', async () => {
+  it('should delegate operations to E2BSandboxSession and inner E2B sandbox instance', async () => {
     const mockRun = vi.fn().mockResolvedValue({
       stdout: 'hello from openai',
       stderr: '',
