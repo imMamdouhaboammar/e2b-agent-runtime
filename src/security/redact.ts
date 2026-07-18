@@ -1,6 +1,6 @@
 export function redactSecrets(
   text: string,
-  secrets: (string | undefined)[]
+  secrets: (string | undefined)[] = []
 ): string {
   let redacted = text;
 
