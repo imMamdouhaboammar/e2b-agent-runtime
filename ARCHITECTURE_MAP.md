@@ -105,6 +105,30 @@ flowchart TD
 
 ---
 
+## Phase 8: Pull Request Repair & CI Inspection Architecture
+
+```mermaid
+flowchart TD
+    A[ChatGPT Web] -->|Remote MCP| B[Runtime Controller]
+    B --> C[PR Attachment Service]
+    C --> D[GitHub Reviews API]
+    C --> E[GitHub Checks API]
+    C --> F[GitHub Actions API]
+    D --> G[Review Evidence]
+    E --> H[CI Evidence]
+    F --> H
+    G --> I[Phase 5 Repair Cycle]
+    H --> I
+    I --> J[Phase 4 E2B Coding Workspace]
+    J --> K[Repair Commits]
+    K --> L[Phase 3 Publication Preflight]
+    L --> M[Fast-forward Push to PR Branch]
+    M --> N[New GitHub CI Run]
+    N --> O[Final Reviewer Handoff]
+```
+
+---
+
 ## Component Index
 
 ### Phase 7: Framework Consolidation (`src/sandbox/`)
@@ -120,6 +144,11 @@ flowchart TD
 - **26 Remote MCP Tools**: registered on the Controller MCP server. Includes session lifecycle, navigation, page inspection, actions, assertions, evidence retrieval, failure classification, trace recording, artifact management, and verification cycles.
 - **4 Runtime Policies**: `browser-policy.json`, `navigation-policy.json`, `artifact-policy.json`, `accessibility-policy.json` — validated at startup via `pnpm browser:validate-policies`.
 - **Template Version**: `agent-coding-runtime-core:v0.2.0` — updated in `runtime-pack/MANIFEST.json` with Playwright `1.61.1` and Chromium `149.0.7827.55`.
+
+### Phase 8: Pull Request Repair & CI Inspection (`src/workflow/pr-repair-store.ts`, `src/mcp/tools/phase8-tools.ts`)
+
+- **Pull Request Repair State store**: Persistent schema-validated store for PR repair sessions in `.data/pr-repairs/` with atomic locking and transactions.
+- **20 New MCP Tools**: Attachment, review threads collection, GraphQL and REST querying, feedback classification, check statuses, Actions logs, log sanitation, workspace reconstruction, cycle management, diff review, preflight, fast-forward pushed repairs, CI polling, and response formatting.
 
 ### 1. Remote MCP Controller & Task Orchestration (`src/controller/`, `src/mcp/`, `src/workflow/`)
 - **Server**: Express HTTP + Streamable HTTP MCP server on port 3000.
