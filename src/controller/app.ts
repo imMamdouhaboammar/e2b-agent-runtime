@@ -590,11 +590,7 @@ export function createControllerApp(
     }
 
     if (req.method === 'GET') {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache, no-transform');
-      res.setHeader('Connection', 'keep-alive');
       res.setHeader('X-Accel-Buffering', 'no');
-      res.flushHeaders?.();
     }
 
     mcpTransport.handleRequest(req, res).catch((err) => {
