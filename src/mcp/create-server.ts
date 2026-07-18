@@ -8,7 +8,9 @@ import { SkillsRuntimeRegistry } from '../runtime/skills-runtime.js';
 import { TerminalSessionManager } from '../terminal/terminal-manager.js';
 import { CodingWorkspaceOrchestrator } from '../workspace/workspace-orchestrator.js';
 import { registerPhase4Tools } from './tools/phase4-tools.js';
+import { registerPhase5Tools } from './tools/phase5-tools.js';
 import { loadControllerConfig } from '../config.js';
+
 
 export function createControllerMcpServer(
   workerManager: E2BWorkerManager,
@@ -312,5 +314,13 @@ export function createControllerMcpServer(
     // Non-fatal fallback
   }
 
+  // Attach Phase 5 Coding Workflow Engine Tools
+  try {
+    registerPhase5Tools(server);
+  } catch (err) {
+    // Non-fatal fallback
+  }
+
   return server;
 }
+
