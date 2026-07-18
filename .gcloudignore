@@ -1,0 +1,34 @@
+# Google Cloud Platform Ignore File (.gcloudignore)
+# This file specifies files and directories that should not be uploaded
+# to Google Cloud when deploying services or running builds.
+
+# Ignore Git directory and config
+.git/
+.gitignore
+
+# Ignore Node.js dependencies (will be installed during the Docker build stage)
+node_modules/
+pnpm-debug.log*
+
+# Ignore environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Ignore local build and compilation outputs (built inside the multi-stage Docker container)
+dist/
+coverage/
+*.log
+
+# Ignore local runtime/controller state files and local database data
+.data/
+.controller-state.json
+
+# Ignore developer-specific and IDE directories
+.agents/
+.claude/
+.codex/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
