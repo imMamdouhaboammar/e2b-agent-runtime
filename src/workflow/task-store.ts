@@ -119,8 +119,10 @@ export class TaskStore {
             acceptance_criteria, explicit_out_of_scope, related_issue, related_pull_request,
             task_state, plan, repair_cycle_limit, repair_cycle_count, total_command_limit,
             total_command_count, base_sha, current_head_sha, branch_name, checkpoint_ids,
-            blockers, validation_summary, created_at, updated_at, last_activity, version
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 0, $14, 0, $15, $16, $17, '[]'::jsonb, '[]'::jsonb, '', $18, $19, $20, 1)`,
+            blockers, validation_summary, created_at, updated_at, last_activity, version,
+            files_inspected, files_modified, active_repair_attempt_id, active_validation_cycle_id,
+            current_step_id, risks, repair_attempt_limit_per_cycle
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 0, $14, 0, $15, $16, $17, '[]'::jsonb, '[]'::jsonb, '', $18, $19, $20, 1, $21, $22, $23, $24, $25, $26, $27)`,
           [
             state.taskId,
             state.workspaceId,
@@ -142,6 +144,13 @@ export class TaskStore {
             state.createdAt,
             state.updatedAt,
             state.lastActivity,
+            JSON.stringify(state.filesInspected || []),
+            JSON.stringify(state.filesModified || []),
+            state.activeRepairAttemptId || null,
+            state.activeValidationCycleId || null,
+            state.currentStepId || null,
+            JSON.stringify(state.risks || []),
+            state.repairAttemptLimitPerCycle || 2,
           ],
           dbUrl
         );
@@ -175,19 +184,26 @@ export class TaskStore {
         relatedPullRequest: row.related_pull_request || undefined,
         taskState: row.task_state,
         plan: row.plan || { steps: [] },
+        currentStepId: row.current_step_id || undefined,
         repairCycleLimit: row.repair_cycle_limit,
         repairCycleCount: row.repair_cycle_count || 0,
+        repairAttemptLimitPerCycle: row.repair_attempt_limit_per_cycle || 2,
         totalCommandLimit: row.total_command_limit,
         totalCommandCount: row.total_command_count || 0,
+        filesInspected: row.files_inspected || [],
+        filesModified: row.files_modified || [],
         baseSha: row.base_sha,
         currentHeadSha: row.current_head_sha,
         branchName: row.branch_name,
         checkpointIds: row.checkpoint_ids || [],
         blockers: row.blockers || [],
+        risks: row.risks || [],
         validationSummary: row.validation_summary || undefined,
         createdAt: new Date(row.created_at).toISOString(),
         updatedAt: new Date(row.updated_at).toISOString(),
         lastActivity: new Date(row.last_activity).toISOString(),
+        activeRepairAttemptId: row.active_repair_attempt_id || undefined,
+        activeValidationCycleId: row.active_validation_cycle_id || undefined,
       });
     }
 
@@ -250,7 +266,10 @@ export class TaskStore {
           `UPDATE tasks SET
             task_state = $2, plan = $3, repair_cycle_count = $4, total_command_count = $5,
             current_head_sha = $6, branch_name = $7, checkpoint_ids = $8, blockers = $9,
-            validation_summary = $10, updated_at = $11, last_activity = $12
+            validation_summary = $10, updated_at = $11, last_activity = $12,
+            files_inspected = $13, files_modified = $14, active_repair_attempt_id = $15,
+            active_validation_cycle_id = $16, current_step_id = $17, risks = $18,
+            repair_attempt_limit_per_cycle = $19, related_pull_request = $20
            WHERE task_id = $1`,
           [
             validated.taskId,
@@ -265,6 +284,14 @@ export class TaskStore {
             validated.validationSummary || null,
             validated.updatedAt,
             validated.lastActivity,
+            JSON.stringify(validated.filesInspected || []),
+            JSON.stringify(validated.filesModified || []),
+            validated.activeRepairAttemptId || null,
+            validated.activeValidationCycleId || null,
+            validated.currentStepId || null,
+            JSON.stringify(validated.risks || []),
+            validated.repairAttemptLimitPerCycle || 2,
+            validated.relatedPullRequest || null,
           ],
           dbUrl
         );

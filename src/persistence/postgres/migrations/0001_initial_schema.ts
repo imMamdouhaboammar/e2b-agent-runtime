@@ -1,5 +1,6 @@
--- Phase 9 Initial Schema Migration
+// Phase 9 Initial Schema Migration Definition
 
+export const INITIAL_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS sessions (
   session_id VARCHAR(128) PRIMARY KEY,
   e2b_sandbox_id VARCHAR(128) NOT NULL,
@@ -16,7 +17,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE TABLE IF NOT EXISTS leases (
-  lease_name VARCHAR(128) PRIMARY KEY,
+  text_key VARCHAR(128) PRIMARY KEY,
   owner_id VARCHAR(128) NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL
@@ -154,12 +155,11 @@ CREATE TABLE IF NOT EXISTS rate_limit_events (
 CREATE INDEX IF NOT EXISTS idx_rate_limit_events_timestamp ON rate_limit_events (timestamp);
 CREATE INDEX IF NOT EXISTS idx_rate_limit_events_identifier ON rate_limit_events (identifier);
 
--- Unique constraints index for active task per workspace
 CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_task_per_workspace 
 ON tasks (workspace_id) 
 WHERE task_state NOT IN ('COMPLETED', 'ABANDONED', 'FAILED', 'DESTROYED');
 
--- Unique constraint index for active Pull Request repair task per repository
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_pr_repair 
 ON tasks (repository, related_pull_request) 
 WHERE task_state NOT IN ('COMPLETED', 'ABANDONED', 'FAILED', 'DESTROYED') AND related_pull_request IS NOT NULL;
+`;
