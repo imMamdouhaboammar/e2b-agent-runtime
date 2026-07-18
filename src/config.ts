@@ -19,6 +19,21 @@ export interface ControllerConfig {
   commandOutputLimitBytes: number;
   sessionRegistryPath: string;
   logLevel: string;
+  workerTemplate: string;
+  maxTerminalsPerWorkspace: number;
+  ptyBufferMaxBytes: number;
+  ptyReadDefaultBytes: number;
+  ptyReadMaxBytes: number;
+  ptyInputMaxBytes: number;
+  terminalDefaultCols: number;
+  terminalDefaultRows: number;
+  terminalMinCols: number;
+  terminalMaxCols: number;
+  terminalMinRows: number;
+  terminalMaxRows: number;
+  terminalIdleTimeoutMs: number;
+  workspaceIdleTimeoutMs: number;
+  workspaceMaxLifetimeMs: number;
 }
 
 const controllerConfigSchema = z.object({
@@ -89,6 +104,87 @@ const controllerConfigSchema = z.object({
     .string()
     .optional()
     .transform((val) => val || 'info'),
+  E2B_WORKER_TEMPLATE: z
+    .string()
+    .optional()
+    .transform((val) => val || 'agent-coding-runtime-core:stable'),
+  MAX_TERMINALS_PER_WORKSPACE: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 3))
+    .refine((val) => !Number.isNaN(val) && val >= 1 && val <= 10, {
+      message: 'MAX_TERMINALS_PER_WORKSPACE must be between 1 and 10.',
+    }),
+  PTY_BUFFER_MAX_BYTES: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 1048576))
+    .refine((val) => !Number.isNaN(val) && val >= 65536 && val <= 10485760, {
+      message: 'PTY_BUFFER_MAX_BYTES must be between 64 KB and 10 MB.',
+    }),
+  PTY_READ_DEFAULT_BYTES: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 65536))
+    .refine((val) => !Number.isNaN(val) && val >= 1024 && val <= 1048576, {
+      message: 'PTY_READ_DEFAULT_BYTES must be between 1 KB and 1 MB.',
+    }),
+  PTY_READ_MAX_BYTES: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 262144))
+    .refine((val) => !Number.isNaN(val) && val >= 1024 && val <= 1048576, {
+      message: 'PTY_READ_MAX_BYTES must be between 1 KB and 1 MB.',
+    }),
+  PTY_INPUT_MAX_BYTES: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 65536))
+    .refine((val) => !Number.isNaN(val) && val >= 128 && val <= 1048576, {
+      message: 'PTY_INPUT_MAX_BYTES must be between 128 bytes and 1 MB.',
+    }),
+  TERMINAL_DEFAULT_COLS: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 120))
+    .refine((val) => !Number.isNaN(val) && val >= 20 && val <= 300, {
+      message: 'TERMINAL_DEFAULT_COLS must be between 20 and 300.',
+    }),
+  TERMINAL_DEFAULT_ROWS: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 40))
+    .refine((val) => !Number.isNaN(val) && val >= 5 && val <= 120, {
+      message: 'TERMINAL_DEFAULT_ROWS must be between 5 and 120.',
+    }),
+  TERMINAL_MIN_COLS: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 20)),
+  TERMINAL_MAX_COLS: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 300)),
+  TERMINAL_MIN_ROWS: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 5)),
+  TERMINAL_MAX_ROWS: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 120)),
+  TERMINAL_IDLE_TIMEOUT_MS: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 1800000)),
+  WORKSPACE_IDLE_TIMEOUT_MS: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 3600000)),
+  WORKSPACE_MAX_LIFETIME_MS: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number.parseInt(val, 10) : 3600000)),
 });
 
 export function loadControllerConfig(
@@ -116,6 +212,21 @@ export function loadControllerConfig(
     commandOutputLimitBytes: result.data.COMMAND_OUTPUT_LIMIT_BYTES,
     sessionRegistryPath: result.data.SESSION_REGISTRY_PATH,
     logLevel: result.data.LOG_LEVEL,
+    workerTemplate: result.data.E2B_WORKER_TEMPLATE,
+    maxTerminalsPerWorkspace: result.data.MAX_TERMINALS_PER_WORKSPACE,
+    ptyBufferMaxBytes: result.data.PTY_BUFFER_MAX_BYTES,
+    ptyReadDefaultBytes: result.data.PTY_READ_DEFAULT_BYTES,
+    ptyReadMaxBytes: result.data.PTY_READ_MAX_BYTES,
+    ptyInputMaxBytes: result.data.PTY_INPUT_MAX_BYTES,
+    terminalDefaultCols: result.data.TERMINAL_DEFAULT_COLS,
+    terminalDefaultRows: result.data.TERMINAL_DEFAULT_ROWS,
+    terminalMinCols: result.data.TERMINAL_MIN_COLS,
+    terminalMaxCols: result.data.TERMINAL_MAX_COLS,
+    terminalMinRows: result.data.TERMINAL_MIN_ROWS,
+    terminalMaxRows: result.data.TERMINAL_MAX_ROWS,
+    terminalIdleTimeoutMs: result.data.TERMINAL_IDLE_TIMEOUT_MS,
+    workspaceIdleTimeoutMs: result.data.WORKSPACE_IDLE_TIMEOUT_MS,
+    workspaceMaxLifetimeMs: result.data.WORKSPACE_MAX_LIFETIME_MS,
   };
 
   logger.registerSecret(config.apiKey);
