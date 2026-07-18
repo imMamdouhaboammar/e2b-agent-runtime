@@ -62,6 +62,19 @@ export const EVIDENCE_CATEGORIES = [
   'browser-trace',
   'browser-accessibility',
   'browser-flow',
+  'pr-metadata',
+  'pr-review',
+  'pr-review-thread',
+  'pr-review-classification',
+  'ci-check',
+  'ci-workflow',
+  'ci-job',
+  'ci-annotation',
+  'ci-log-excerpt',
+  'pr-repair-commit',
+  'pr-repair-push',
+  'pr-ci-refresh',
+  'pr-review-response',
 ] as const;
 export type EvidenceCategory = (typeof EVIDENCE_CATEGORIES)[number];
 
@@ -147,6 +160,13 @@ export const ExecutionEvidenceSchema = z.object({
   outputExcerpt: z.string().default(''),
   isStale: z.boolean().default(false),
   staleReason: z.string().optional(),
+  repository: z.string().optional(),
+  pullRequestNumber: z.number().optional(),
+  relevantHeadSha: z.string().optional(),
+  sourceType: z.string().optional(),
+  sourceId: z.string().optional(),
+  sanitizedSummary: z.string().optional(),
+  contentHash: z.string().optional(),
 });
 export type ExecutionEvidence = z.infer<typeof ExecutionEvidenceSchema>;
 

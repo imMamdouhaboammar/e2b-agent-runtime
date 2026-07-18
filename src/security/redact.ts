@@ -11,10 +11,43 @@ export function redactSecrets(
     }
   }
 
-  // Redact Bearer token headers if matching pattern
+  // Redact Bearer and Basic token headers
   redacted = redacted.replace(
-    /Authorization:\s*Bearer\s+[^\s"']+/gi,
-    'Authorization: Bearer [REDACTED]'
+    /Authorization:\s*(Bearer|Basic)\s+[^\s"']+/gi,
+    'Authorization: [REDACTED_AUTH]'
+  );
+
+  // Redact general authorization/token in URL headers or parameters
+  redacted = redacted.replace(
+    /(?:access_token|token|api_key|client_secret|password)=\s*[^\s"']+/gi,
+    (match) => {
+      const parts = match.split('=');
+      return `${parts[0]}=[REDACTED_CREDENTIAL]`;
+    }
+  );
+
+  // Redact cookies
+  redacted = redacted.replace(/(?:set-cookie|cookie):\s*[^\r\n]+/gi, '[REDACTED_COOKIE]');
+
+  // Redact private keys
+  redacted = redacted.replace(
+    /-----BEGIN[A-Z0-9\s_]*PRIVATE KEY-----[^-]*-----END[A-Z0-9\s_]*PRIVATE KEY-----/gims,
+    '[REDACTED_PRIVATE_KEY]'
+  );
+
+  // Redact signed URLs / URLs with credential query parameters (signature, token, expires)
+  redacted = redacted.replace(
+    /https?:\/\/[^\s"']*(?:Signature|Expires|AWSAccessKeyId|se=|st=|sr=|sp=|sig=)[^\s"']*/gi,
+    '[REDACTED_SIGNED_URL]'
+  );
+
+  // Redact environment assignments for sensitive names
+  redacted = redacted.replace(
+    /(?:SECRET|PASSWORD|TOKEN|KEY|PASS|CREDENTIAL|PRIVATE|AUTH)(?:_[A-Z0-9]+)*\s*=\s*[^\s"'\r\n]+/gi,
+    (match) => {
+      const parts = match.split('=');
+      return `${parts[0]}=[REDACTED_ENV_VAR]`;
+    }
   );
 
   // Redact E2B API Key patterns if matching e2b_sec_...
@@ -22,3 +55,4 @@ export function redactSecrets(
 
   return redacted;
 }
+

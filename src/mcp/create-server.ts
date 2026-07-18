@@ -10,6 +10,7 @@ import { CodingWorkspaceOrchestrator } from '../workspace/workspace-orchestrator
 import { registerPhase4Tools } from './tools/phase4-tools.js';
 import { registerPhase5Tools } from './tools/phase5-tools.js';
 import { registerPhase6Tools } from './tools/phase6-tools.js';
+import { registerPhase8Tools } from './tools/phase8-tools.js';
 import { loadControllerConfig } from '../config.js';
 
 
@@ -325,6 +326,13 @@ export function createControllerMcpServer(
   // Attach Phase 6 Browser & UI Verification Tools
   try {
     registerPhase6Tools(server);
+  } catch (err) {
+    // Non-fatal fallback
+  }
+
+  // Attach Phase 8 PR Feedback, CI Inspection & Repair Tools
+  try {
+    registerPhase8Tools(server);
   } catch (err) {
     // Non-fatal fallback
   }

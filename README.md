@@ -8,6 +8,27 @@ An architecture and runtime for running a **Remote Model Context Protocol (MCP) 
 
 Phase 7 establishes a provider-neutral sandbox contract adapter layer. It enables adopting framework components from E2B SDK, OpenAI Agents SDK, and the official MCP SDK while keeping the Remote MCP Controller compatible with Node.js 20.
 
+---
+
+## Phase 8: Pull Request Feedback & CI Repair Workflow
+
+Phase 8 implements a bounded Pull Request feedback, CI inspection, review-resolution, and branch-repair workflow.
+
+### Features
+- **PR Attachment**: Connects a coding task to one open Pull Request, verifying bases, heads, and writable status.
+- **Review Threads Collection**: Fetches review threads and comments via GraphQL and REST API.
+- **CI & Checks Inspection**: Inspects check runs and workflow status filtered by the exact HEAD SHA.
+- **CI Log Sanitizer**: Redacts tokens, private keys, signed URLs, cookies, and env parameters from downloaded CI log excerpts.
+- **Fast-Forward Push**: Commits and pushes only fast-forward updates onto the PR head branch without auto-merging.
+
+### Configuration Limits
+- `PR_REPAIR_MAX_CYCLES`: 3
+- `PR_REPAIR_MAX_COMMITS`: 10
+- `PR_REPAIR_MAX_FILES_WARNING`: 50
+- `PR_REPAIR_MAX_CI_POLL_MS`: 900000 ms
+
+---
+
 ### Sandbox Provider Configuration
 - **`SANDBOX_PROVIDER`**: Selects the default sandbox engine (`direct-e2b` or `openai-agents-e2b`). Defaults to `direct-e2b`.
 - **`SANDBOX_PROVIDER_ALLOW_FALLBACK`**: Enables/disables fallback to direct-e2b on provider load failures. Defaults to `false`.
