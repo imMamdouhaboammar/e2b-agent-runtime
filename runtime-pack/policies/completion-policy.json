@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "completion-policy",
+  "version": "1.0.0",
+  "requiredGates": [
+    "branch_safety",
+    "worktree_clean",
+    "commits_present",
+    "plan_completed",
+    "validation_passed",
+    "no_failed_checks",
+    "secret_scan_clean"
+  ],
+  "prohibitedActions": [
+    "merge",
+    "auto_merge",
+    "push_default_branch",
+    "force_push",
+    "rewrite_published_history"
+  ]
+}

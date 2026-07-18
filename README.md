@@ -1,41 +1,42 @@
 # E2B Agent Runtime
 
-An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using [E2B Sandboxes](https://e2b.dev), orchestrating disposable E2B Worker Sandboxes for safe tool execution, persistent PTY terminal sessions, runtime packs, structured workflows, and GitHub branch publication.
+An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using [E2B Sandboxes](https://e2b.dev), orchestrating disposable E2B Worker Sandboxes for safe tool execution, persistent PTY terminal sessions, repository intelligence, task planning, evidence tracking, bounded repair cycles, checkpoints, diff review, and GitHub branch publication.
 
 ---
 
-## Phase 4 Architecture: PTY-backed Coding Workspace Layer
+## Phase 5 Architecture: Structured AI-Assisted Coding Workflow Engine
 
 ```mermaid
 flowchart TD
     A[ChatGPT Web / Remote MCP Client] -->|HTTPS & Bearer token| B[Remote MCP Controller]
-    B --> C[Coding Workspace Orchestrator]
-    C --> D[Versioned E2B Worker Template]
-    D --> E[Disposable E2B Worker Sandbox]
-    E --> F[Persistent PTY Shell]
-    E --> G[One-shot Commands]
-    E --> H[Repository Workspace]
-    E --> I[Agent Runtime Pack /opt/agent]
-    I --> J[Skills]
-    I --> K[Workflows]
-    I --> L[Policies]
-    F --> M[Interactive Build & Test Processes]
-    H --> N[Local Feature Branch]
-    N --> O[Phase 3 GitHub Publication]
+    B --> C[Coding Task Orchestrator]
+    C --> D[Repository Intelligence]
+    C --> E[Plan Registry]
+    C --> F[Execution Evidence Ledger]
+    C --> G[Validation Cycle Manager]
+    C --> H[Bounded Repair Manager]
+    C --> I[Checkpoint Manager]
+    C --> J[Diff Review Service]
+    C --> K[Completion Gate Evaluator]
+    B --> L[Phase 4 Coding Workspace]
+    L --> M[E2B Worker and PTY]
+    M --> N[Repository and Feature Branch]
+    K --> O[Phase 3 GitHub Publication]
     O --> P[Official GitHub Connector]
-    P --> Q[Pull Request]
+    Q --> R[Pull Request]
 ```
 
 ### Trust Boundaries & Isolation Model
 
 | Component | E2B Lifecycle | Terminal / Filesystem Exposure | Secrets Access |
 |---|---|---|---|
-| **Controller Sandbox** | `onTimeout: "pause"`, `autoResume: true` | **NEVER** exposed to clients. Runs HTTP server only. | Holds `E2B_API_KEY`, `MCP_ACCESS_TOKEN`, and `GITHUB_APP_PRIVATE_KEY`. |
+| **Controller Sandbox** | `onTimeout: "pause"`, `autoResume: true` | **NEVER** exposed to clients. Runs HTTP server & workflow state. | Holds `E2B_API_KEY`, `MCP_ACCESS_TOKEN`, and `GITHUB_APP_PRIVATE_KEY`. |
 | **Worker Sandboxes** | `onTimeout: "kill"`, `autoResume: false` | Restricted to `/workspace`. Executes tool, PTY, & Git commands. | Receives short-lived, repository-scoped installation access tokens inline only. **ZERO** master keys or private keys passed. |
+| **MCP Client (ChatGPT)** | Remote MCP Client | Controls workspace via MCP tools. | High-level Remote MCP tool calls. ChatGPT is the reasoning layer. No inner AI coding model is installed. |
 
-- **ChatGPT is the Reasoning Layer**: ChatGPT Web or another Remote MCP client acts as the reasoning coding agent, directly controlling the terminal via MCP. No nested inner AI CLI (such as OpenCode or Codex CLI) is installed or run by default.
+- **ChatGPT is the Reasoning Layer**: ChatGPT Web or another Remote MCP client acts as the reasoning coding agent, directly controlling the terminal and workflow via MCP. No nested inner AI CLI (such as OpenCode or Codex CLI) is installed or run by default.
 - **Worker Isolation**: Worker Sandboxes are completely disposable. Persistent PTY sessions and command execution are restricted to `/workspace/repository`.
-- **Secret Redaction**: All secrets (`E2B_API_KEY`, `MCP_ACCESS_TOKEN`, `GITHUB_APP_PRIVATE_KEY`, installation access tokens) are automatically redacted from logs, error messages, and diffs.
+- **Secret Redaction**: All secrets (`E2B_API_KEY`, `MCP_ACCESS_TOKEN`, `GITHUB_APP_PRIVATE_KEY`, installation access tokens) are automatically redacted from logs, error messages, diffs, and checkpoints.
 
 ---
 
@@ -54,43 +55,49 @@ cp .env.example .env
 | `E2B_WORKER_TEMPLATE` | Private versioned E2B Worker Template tag | `agent-coding-runtime-core:stable` | No |
 | `MAX_ACTIVE_WORKERS` | Maximum concurrent worker sandboxes | `3` | No |
 | `MAX_TERMINALS_PER_WORKSPACE` | Maximum active terminals per workspace | `3` | No |
-| `PTY_BUFFER_MAX_BYTES` | PTY ring buffer capacity limit | `1048576` (1MB) | No |
-| `PTY_READ_DEFAULT_BYTES` | Default PTY read size | `65536` (64KB) | No |
-| `PTY_READ_MAX_BYTES` | Maximum PTY read chunk size | `262144` (256KB) | No |
+| `MAX_PLAN_STEPS` | Maximum steps per task plan | `20` | No |
+| `MAX_REPAIR_CYCLES` | Maximum test/repair cycles per task | `3` | No |
+| `MAX_TOTAL_COMMANDS_PER_TASK` | Execution command limit per task | `100` | No |
 | `WORKER_DEFAULT_TIMEOUT_MS` | Default worker sandbox timeout | `600000` (10m) | No |
-| `WORKER_MAX_TIMEOUT_MS` | Maximum worker sandbox timeout | `3600000` (1h) | No |
 | `GITHUB_APP_ID` | GitHub App ID | - | If GitHub publishing enabled |
 | `GITHUB_APP_INSTALLATION_ID` | GitHub App Installation ID | - | If GitHub publishing enabled |
 | `GITHUB_APP_PRIVATE_KEY` | GitHub App PEM Private Key | - | If GitHub publishing enabled |
 
 ---
 
-## Remote MCP Tools Reference
+## Phase 5 MCP Tools Reference (60 Total Remote MCP Tools)
 
-The Remote MCP Controller exposes 34 tools to authenticated MCP clients across Phase 1, Phase 2, Phase 3, and Phase 4:
+### Phase 5 Coding Workflow Engine Tools
 
-### Phase 4 Coding Workspace & Terminal Tools
-
-| Tool | Input Schema | Description |
-|---|---|---|
-| `agent_runtime_info` | `{}` | Returns runtime version, skills pack version, workflow schema version, and security mode. |
-| `agent_list_skills` | `{}` | Lists all runtime skills with descriptions and content hashes. |
-| `agent_load_skill` | `{ skillName, maxBytes? }` | Loads full or bounded content of a runtime skill. Rejects path traversal. |
-| `agent_get_workflow` | `{ workflowName }` | Returns structured workflow definition validated against Zod schema. |
-| `agent_get_operating_instructions` | `{}` | Returns operating handbook instructions for the Worker Sandbox session. |
-| `coding_workspace_start` | `{ repository, taskMode?, baseBranch?, branchName?, templateTag?, initialTerminal? }` | Transactionally starts a coding workspace with clone, feature branch, bootstrap, and PTY. |
-| `coding_workspace_get` | `{ workspaceId }` | Returns detailed workspace state and active terminals. |
-| `terminal_open` | `{ workspaceId, shell?, cwd?, cols?, rows? }` | Opens a persistent interactive PTY shell inside `/workspace/repository`. |
-| `terminal_exec` | `{ workspaceId, command, cwd?, timeoutMs? }` | Executes a deterministic one-shot command inside the Worker Sandbox. |
-| `terminal_write` | `{ workspaceId, terminalId, input }` | Sends input string or control sequences to an active PTY. |
-| `terminal_read` | `{ workspaceId, terminalId, cursor?, maxBytes? }` | Reads incremental output from PTY using monotonic byte cursors. |
-| `terminal_resize` | `{ workspaceId, terminalId, cols, rows }` | Resizes active PTY window dimensions. |
-| `terminal_send_signal` | `{ workspaceId, terminalId, signal }` | Sends safe signal (`SIGINT`, `SIGTERM`, `SIGHUP`, `SIGWINCH`) to PTY process. |
-| `terminal_close` | `{ workspaceId, terminalId }` | Closes active PTY session cleanly. |
-| `terminal_list` | `{ workspaceId }` | Lists all active terminals for a workspace. |
-| `workspace_list_ports` | `{ workspaceId }` | Detects open listening ports and preview URLs inside the Worker Sandbox. |
-| `agent_create_checkpoint` | `{ workspaceId, repository?, branch?, nextAction? }` | Saves structured session checkpoint metadata. |
-| `coding_workspace_destroy` | `{ workspaceId, confirm: true }` | Destroys coding workspace and associated Worker Sandbox. |
+| Tool | Category | Input Schema | Description |
+|---|---|---|---|
+| `coding_task_start` | State-changing | `{ workspaceId, repository, taskMode, taskLabel, userRequest }` | Starts a coding task and selects task workflow. |
+| `coding_task_get` | Read-only | `{ taskId }` | Retrieves detailed state and summary of a coding task. |
+| `repository_intelligence_scan` | Read-only | `{ taskId, depth?, includeGenerated?, includeWorkflows? }` | Intelligently scans workspace repository structure, manifests, and commands. |
+| `repository_intelligence_get` | Read-only | `{ taskId, section? }` | Gets a specific section of the repository intelligence report. |
+| `repository_search` | Read-only | `{ taskId, query, paths?, fileGlobs?, maxResults? }` | Searches file content using safe ripgrep within the bound repository. |
+| `repository_find_files` | Read-only | `{ taskId, namePattern?, pathPattern?, extensions? }` | Finds files matching patterns within the repository. |
+| `repository_symbol_search` | Read-only | `{ taskId, symbol, language?, paths? }` | Searches for code symbols with confidence rating (`high`, `medium`, `low`). |
+| `coding_plan_set` | State-changing | `{ taskId, confirmedProblem, intendedChange, untouchedScope, verificationMethod, steps }` | Sets structured plan with dependency cycle validation and verification requirements. |
+| `coding_plan_update_step` | State-changing | `{ taskId, stepId, status, evidenceRefs?, blocker?, note? }` | Updates plan step status. Prevents marking validation steps complete without evidence. |
+| `coding_plan_get` | Read-only | `{ taskId }` | Gets current plan for a coding task. |
+| `execution_record_command` | State-changing | `{ taskId, executionId, category, purpose?, relatedStepId? }` | Associates actual terminal execution with task as official evidence. |
+| `execution_list_evidence` | Read-only | `{ taskId, category?, status?, limit? }` | Lists recorded execution evidence for a task. |
+| `validation_plan_detect` | Read-only | `{ taskId, targetPaths?, taskMode? }` | Proposes validation commands based on repository intelligence. |
+| `validation_cycle_start` | State-changing | `{ taskId, plannedCategories, cycleLabel? }` | Starts a validation cycle. Enforces repair budget. |
+| `validation_cycle_complete` | State-changing | `{ taskId, cycleId, evidenceIds, summary? }` | Completes validation cycle using real execution evidence. |
+| `validation_get_status` | Read-only | `{ taskId }` | Gets current validation status and remaining repair budget. |
+| `failure_classify` | Read-only | `{ taskId, executionId, clientInterpretation? }` | Classifies failure category and repeated failure signatures. |
+| `repair_attempt_start` | State-changing | `{ taskId, cycleId, failureEvidenceIds, hypothesis }` | Starts a bounded repair attempt following a failed cycle. |
+| `repair_attempt_complete` | State-changing | `{ taskId, repairAttemptId, inspectedPaths, changedPaths, result }` | Completes repair attempt and tracks modified paths. |
+| `coding_checkpoint_create` | State-changing | `{ taskId, reason, decisions, inspectedPaths, importantSymbols, blockers, risks, exactNextAction }` | Creates compact, sanitized task checkpoint (`SESSION_CHECKPOINT.md`). |
+| `coding_checkpoint_get` | Read-only | `{ taskId, checkpointId }` | Gets details of a task checkpoint. |
+| `coding_checkpoint_list` | Read-only | `{ taskId }` | Lists checkpoint metadata for a task. |
+| `coding_task_resume` | State-changing | `{ taskId, checkpointId }` | Resumes task from checkpoint with drift detection. |
+| `coding_diff_review` | Read-only | `{ taskId, includePatch?, maxPatchBytes? }` | Reviews working tree diff against base SHA, secret findings, and scope expansion. |
+| `coding_completion_gate` | Read-only | `{ taskId, acknowledgeUnavailableChecks? }` | Evaluates completion gates before publication preflight. |
+| `coding_pr_handoff_prepare` | Read-only | `{ taskId }` | Prepares structured Pull Request handoff markdown using `PR_TEMPLATE.md`. |
+| `coding_task_abandon` | State-changing | `{ taskId, confirm: true, reason }` | Abandons coding task with explicit confirmation. |
 
 ---
 
@@ -103,16 +110,14 @@ pnpm check
 # Run unit tests only
 pnpm test
 
-# Template CLI Management
-pnpm template:audit-base
-pnpm template:build
-pnpm template:verify
-pnpm template:promote --confirm
-pnpm template:info
+# Workflow policy & list scripts
+pnpm workflow:validate
+pnpm workflow:list
+pnpm runtime:inspect-task-policy
 
 # Gated Integration Tests
-pnpm test:integration:workspace
-pnpm test:integration:pty
-pnpm test:integration:template
-pnpm test:integration:ports
+pnpm test:integration:workflow
+pnpm test:integration:repair-cycle
+pnpm test:integration:checkpoint-resume
+pnpm test:integration:completion-gate
 ```

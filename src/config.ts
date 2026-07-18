@@ -254,3 +254,27 @@ export function loadConfig(
     sandboxTimeoutMs: controllerConf.workerDefaultTimeoutMs,
   };
 }
+
+export function loadWorkflowLimitsConfig(
+  envOverride?: Record<string, string | undefined>
+) {
+  const env = envOverride ?? process.env;
+  return {
+    MAX_PLAN_STEPS: Number.parseInt(env.MAX_PLAN_STEPS || '20', 10),
+    MAX_REPAIR_CYCLES: Number.parseInt(env.MAX_REPAIR_CYCLES || '3', 10),
+    MAX_REPAIR_ATTEMPTS_PER_CYCLE: Number.parseInt(env.MAX_REPAIR_ATTEMPTS_PER_CYCLE || '2', 10),
+    MAX_TOTAL_COMMANDS_PER_TASK: Number.parseInt(env.MAX_TOTAL_COMMANDS_PER_TASK || '100', 10),
+    MAX_CHECKPOINTS_PER_TASK: Number.parseInt(env.MAX_CHECKPOINTS_PER_TASK || '20', 10),
+    MAX_CHANGED_FILES_WARNING: Number.parseInt(env.MAX_CHANGED_FILES_WARNING || '50', 10),
+    MAX_DIFF_BYTES: Number.parseInt(env.MAX_DIFF_BYTES || '524288', 10),
+    MAX_EVIDENCE_ITEMS: Number.parseInt(env.MAX_EVIDENCE_ITEMS || '250', 10),
+    REPOSITORY_SEARCH_MAX_RESULTS: Number.parseInt(env.REPOSITORY_SEARCH_MAX_RESULTS || '100', 10),
+    REPOSITORY_SEARCH_MAX_BYTES: Number.parseInt(env.REPOSITORY_SEARCH_MAX_BYTES || '262144', 10),
+    REPOSITORY_INTELLIGENCE_MAX_BYTES: Number.parseInt(env.REPOSITORY_INTELLIGENCE_MAX_BYTES || '524288', 10),
+    FAILURE_SIGNATURE_REPEAT_WARNING: Number.parseInt(env.FAILURE_SIGNATURE_REPEAT_WARNING || '2', 10),
+    FAILURE_SIGNATURE_REPEAT_BLOCK: Number.parseInt(env.FAILURE_SIGNATURE_REPEAT_BLOCK || '4', 10),
+    CHECKPOINT_MAX_BYTES: Number.parseInt(env.CHECKPOINT_MAX_BYTES || '131072', 10),
+    TASK_SUMMARY_MAX_BYTES: Number.parseInt(env.TASK_SUMMARY_MAX_BYTES || '65536', 10),
+  };
+}
+
