@@ -4,6 +4,28 @@ An architecture and runtime for running a **Remote Model Context Protocol (MCP) 
 
 ---
 
+## Phase 7 Sandbox Provider Architecture
+
+```mermaid
+flowchart TD
+    A[ChatGPT Web] -->|Remote MCP| B[Runtime MCP Controller]
+    B --> C[Sandbox Provider Contract]
+    C --> D[Direct E2B Provider]
+    C --> E[OpenAI Agents E2B Provider (Guarded)]
+    D --> F[E2B Sandbox]
+    E --> F
+    F --> G[Terminal and Filesystem]
+    F --> H[Repository Workspace]
+    F --> I[Browser and Artifacts]
+
+    J[Optional OpenAI Agents SDK Client] -->|Streamable HTTP MCP| B
+    J --> K[Optional SandboxAgent Example]
+    K --> E
+
+    B --> L[Workflow and Evidence Layer]
+    L --> M[GitHub Publication Broker]
+```
+
 ## Phase 6 Browser & User-Interface Verification Architecture
 
 ```mermaid
@@ -84,6 +106,14 @@ flowchart TD
 ---
 
 ## Component Index
+
+### Phase 7: Framework Consolidation (`src/sandbox/`)
+
+- **Sandbox Provider Contract**: Neutral boundary interface representing sandbox session management (`createSession`, `connectSession`, `execCommand`, `PTY management`, `filesystem operations`, etc.).
+- **Available Providers**:
+  - `direct-e2b`: Wrapped core SDK implementation. Selected as the production default.
+  - `openai-agents-e2b`: Gated adapter using E2BSandboxClient, requiring Node.js 22+.
+- **Compatibility Audits**: Automated checks for exact framework package versions and peer compatibility mapping.
 
 ### Phase 6: Browser & UI Verification (`src/browser/`, `src/mcp/tools/phase6-tools.ts`)
 

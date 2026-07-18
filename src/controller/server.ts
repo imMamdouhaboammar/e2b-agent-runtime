@@ -1,5 +1,6 @@
 import type { Server } from 'node:http';
 import { loadControllerConfig } from '../config.js';
+import { loadSandboxProviderConfig } from '../sandbox/providerConfig.js';
 import { E2BWorkerManager } from '../runtime/e2b-worker-manager.js';
 import { LifecycleReconciler } from '../runtime/lifecycle-reconciler.js';
 import { SessionRegistry } from '../runtime/session-registry.js';
@@ -12,6 +13,8 @@ export async function startServer(envOverride?: Record<string, string | undefine
   stop: () => Promise<void>;
 }> {
   const config = loadControllerConfig(envOverride);
+  const providerConfig = loadSandboxProviderConfig(envOverride);
+  logger.info('sandbox.provider.selected', { provider: providerConfig.provider });
 
   // 1. Initialize session registry
   const registry = new SessionRegistry(config.sessionRegistryPath);

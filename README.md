@@ -4,6 +4,19 @@ An architecture and runtime for running a **Remote Model Context Protocol (MCP) 
 
 ---
 
+## Phase 7 Architecture: Framework Consolidation & Official SDK Adoption
+
+Phase 7 establishes a provider-neutral sandbox contract adapter layer. It enables adopting framework components from E2B SDK, OpenAI Agents SDK, and the official MCP SDK while keeping the Remote MCP Controller compatible with Node.js 20.
+
+### Sandbox Provider Configuration
+- **`SANDBOX_PROVIDER`**: Selects the default sandbox engine (`direct-e2b` or `openai-agents-e2b`). Defaults to `direct-e2b`.
+- **`SANDBOX_PROVIDER_ALLOW_FALLBACK`**: Enables/disables fallback to direct-e2b on provider load failures. Defaults to `false`.
+
+### Runtime Capability Matrix
+Each provider implements a static capability matrix. The Controller checks capability support before executing operations (Pty, Filesystem, Port Expose).
+
+---
+
 ## Phase 6 Architecture: Browser & User-Interface Verification
 
 ```mermaid
