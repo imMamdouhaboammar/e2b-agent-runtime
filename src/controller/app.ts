@@ -133,8 +133,11 @@ export function createControllerApp(
           grant_types,
           client_name,
           client_type,
-          token_endpoint_auth_method
-        ) VALUES ($1, 'dynamic', $2, $3, $4, $5::auth.oauth_client_type, $6)`,
+          token_endpoint_auth_method,
+          client_secret_hash,
+          client_uri,
+          logo_uri
+        ) VALUES ($1, 'dynamic', $2, $3, $4, $5::auth.oauth_client_type, $6, '', '', '')`,
         [
           clientId,
           redirectUrisStr,
