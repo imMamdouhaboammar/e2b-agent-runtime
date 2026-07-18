@@ -5,7 +5,11 @@ import { E2BWorkerManager } from '../runtime/e2b-worker-manager.js';
 import { LifecycleReconciler } from '../runtime/lifecycle-reconciler.js';
 import { SessionRegistry } from '../runtime/session-registry.js';
 import { logger } from '../shared/logger.js';
-import { createControllerApp } from './app.js';
+import { createControllerApp, setDraining, setStarted } from './app.js';
+import { closeDbPool } from '../persistence/postgres/client.js';
+import { runMigrations } from '../persistence/postgres/migrations/runner.js';
+import { initializeTelemetry } from '../observability/opentelemetry.js';
+import { MetricsCollector } from '../runtime/metricsCollector.js';
 
 export async function startServer(envOverride?: Record<string, string | undefined>): Promise<{
   server: Server;
@@ -15,6 +19,21 @@ export async function startServer(envOverride?: Record<string, string | undefine
   const config = loadControllerConfig(envOverride);
   const providerConfig = loadSandboxProviderConfig(envOverride);
   logger.info('sandbox.provider.selected', { provider: providerConfig.provider });
+
+  // Initialize Telemetry
+  initializeTelemetry();
+
+  // Run DB migrations if configured
+  const dbUrl = envOverride?.TEST_DB_URL || envOverride?.DATABASE_URL || process.env.DATABASE_URL;
+  if (dbUrl) {
+    try {
+      logger.info('DATABASE_URL detected. Running database migrations...');
+      await runMigrations(dbUrl);
+    } catch (err: any) {
+      logger.error('Failed to run database migrations at startup', { error: err.message });
+      throw err;
+    }
+  }
 
   // 1. Initialize session registry
   const registry = new SessionRegistry(config.sessionRegistryPath);
@@ -27,6 +46,10 @@ export async function startServer(envOverride?: Record<string, string | undefine
   // 3. Perform startup reconciliation pass & start unref periodic timer
   await reconciler.reconcileNow();
   reconciler.startPeriodic(60000);
+
+  // Start E2B Sandbox metrics collector
+  const metricsCollector = new MetricsCollector(registry);
+  metricsCollector.start(30000);
 
   // 4. Create Express Application
   const app = createControllerApp(config, workerManager, registry);
@@ -41,11 +64,22 @@ export async function startServer(envOverride?: Record<string, string | undefine
     });
   });
 
+  setStarted(true);
+
   const stop = async (): Promise<void> => {
+    setDraining(true);
     reconciler.stop();
+    metricsCollector.stop();
+    
+    // Allow active connections to drain
+    logger.info('Draining server connections...');
     await new Promise<void>((resolve) => {
       server.close(() => resolve());
     });
+
+    // Close PG connection pool
+    await closeDbPool();
+
     logger.info('Remote MCP Controller Server stopped cleanly.');
   };
 
@@ -57,8 +91,13 @@ if (process.argv[1]?.endsWith('server.ts') || process.argv[1]?.endsWith('server.
   startServer().then(({ server, stop }) => {
     const handleShutdown = async (signal: string) => {
       logger.info(`Received ${signal}. Initiating graceful shutdown...`);
-      await stop();
-      process.exit(0);
+      try {
+        await stop();
+        process.exit(0);
+      } catch (err: any) {
+        logger.error('Graceful shutdown failed', { error: err.message });
+        process.exit(1);
+      }
     };
 
     process.on('SIGTERM', () => handleShutdown('SIGTERM'));

@@ -7,6 +7,18 @@ import type { E2BWorkerManager } from '../runtime/e2b-worker-manager.js';
 import type { SessionRegistry } from '../runtime/session-registry.js';
 import { logger } from '../shared/logger.js';
 import { createAuthMiddleware } from './auth.js';
+import { checkDbConnection } from '../persistence/postgres/client.js';
+
+let isDraining = false;
+let isStarted = false;
+
+export function setDraining(val: boolean) {
+  isDraining = val;
+}
+
+export function setStarted(val: boolean) {
+  isStarted = val;
+}
 
 export function createControllerApp(
   config: ControllerConfig,
@@ -28,7 +40,16 @@ export function createControllerApp(
     next();
   });
 
-  // Public Health Endpoint
+  // 1. Liveness health check
+  app.get('/health/live', (_req: Request, res: Response) => {
+    res.status(200).json({
+      status: 'ok',
+      service: 'e2b-agent-runtime-controller',
+      version: '0.0.1',
+    });
+  });
+
+  // Keep compatibility with legacy /health path
   app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({
       status: 'ok',
@@ -37,8 +58,49 @@ export function createControllerApp(
     });
   });
 
-  // Public Readiness Endpoint
-  app.get('/ready', async (_req: Request, res: Response) => {
+  // 2. Readiness health check
+  app.get('/health/ready', async (_req: Request, res: Response) => {
+    if (isDraining) {
+      res.status(503).json({
+        status: 'draining',
+        message: 'Server is shutting down.',
+      });
+      return;
+    }
+
+    try {
+      // Check database connection if configured
+      const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
+      if (dbUrl) {
+        const dbConnected = await checkDbConnection(dbUrl);
+        if (!dbConnected) {
+          res.status(503).json({
+            status: 'not_ready',
+            message: 'Database connection failed',
+          });
+          return;
+        }
+      }
+
+      await registry.listSessions();
+      res.status(200).json({
+        status: 'ready',
+        service: 'e2b-agent-runtime-controller',
+      });
+    } catch {
+      res.status(503).json({
+        status: 'not_ready',
+        message: 'Session registry unavailable',
+      });
+    }
+  });
+
+  // Keep legacy /ready path
+  app.get('/ready', async (req: Request, res: Response) => {
+    if (isDraining) {
+      res.status(503).json({ status: 'draining', message: 'Server is shutting down.' });
+      return;
+    }
     try {
       await registry.listSessions();
       res.status(200).json({
@@ -49,6 +111,21 @@ export function createControllerApp(
       res.status(503).json({
         status: 'not_ready',
         message: 'Session registry unavailable',
+      });
+    }
+  });
+
+  // 3. Startup health check
+  app.get('/health/startup', (_req: Request, res: Response) => {
+    if (isStarted) {
+      res.status(200).json({
+        status: 'started',
+        service: 'e2b-agent-runtime-controller',
+      });
+    } else {
+      res.status(503).json({
+        status: 'starting',
+        message: 'Server is still initializing',
       });
     }
   });
@@ -67,6 +144,14 @@ export function createControllerApp(
   const authMiddleware = createAuthMiddleware(config.mcpAccessToken);
 
   app.all('/mcp', authMiddleware, (req: Request, res: Response) => {
+    if (isDraining) {
+      res.status(503).json({
+        error: 'SERVICE_UNAVAILABLE',
+        message: 'Server is draining and shutting down.',
+      });
+      return;
+    }
+
     mcpTransport.handleRequest(req, res).catch((err) => {
       logger.error('Error handling StreamableHTTP MCP request', {
         error: err instanceof Error ? err.message : String(err),

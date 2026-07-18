@@ -4,6 +4,32 @@ An architecture and runtime for running a **Remote Model Context Protocol (MCP) 
 
 ---
 
+## Phase 9 Durable Production Hardening Architecture
+
+```mermaid
+flowchart TD
+    A[ChatGPT Web or MCP Client] -->|HTTPS MCP| B[Load Balanced Controller]
+    B --> C[Authentication and Rate Limits]
+    C --> D[Controller Application]
+    D --> E[PostgreSQL Durable State]
+    D --> F[Durable Jobs and Leases]
+    D --> G[GitHub App and Octokit]
+    D --> H[Sandbox Provider Contract]
+    H --> I[E2B Worker Sandboxes]
+    I --> J[Terminal and Repository]
+    I --> K[Browser Verification]
+    D --> L[Artifact Store]
+    D --> M[OpenTelemetry]
+    M --> N[Metrics Backend]
+    M --> O[Trace Backend]
+    D --> P[Structured Logs]
+    Q[GitHub Actions] --> R[Staging Environment]
+    R --> B
+    S[Backup System] --> E
+```
+
+---
+
 ## Phase 7 Sandbox Provider Architecture
 
 ```mermaid
@@ -190,3 +216,14 @@ flowchart TD
 | **Worker Sandbox** | Short-lived installation token passed inline per command | Local checkout, PTY interactive sessions, one-shot commands, dev servers, test execution, branch publication, Playwright Chromium execution |
 | **MCP Client (ChatGPT)** | Bearer Token (`MCP_ACCESS_TOKEN`) | Direct control via Remote MCP tools. ChatGPT is the reasoning layer. No inner AI coding model is installed. |
 | **Browser Artifacts** | None exposed | Stored in `/workspace/.agent-artifacts/browser/` (outside git tree). Accessible only via short-lived pre-signed download URLs. |
+
+---
+
+## Phase 9: Hardening & Production Readiness Component Index
+
+- **Durable Persistence**: `src/persistence/postgres/client.ts` connection pooling, queries, transactions, and migration runner.
+- **Distributed Leases**: `src/persistence/postgres/leases.ts` table-backed atomic lock acquisition and stale lease recovery.
+- **Idempotency Store**: `src/persistence/postgres/idempotency.ts` prevents duplicate writes or creations.
+- **Quota & Rate Limits**: `src/persistence/postgres/quotaManager.ts` active session counting and resource constraints; `src/persistence/postgres/rateLimiter.ts` sliding window rate limiter.
+- **Graceful Shutdown**: `src/controller/server.ts` connection draining, telemetry flushes, and background timers termination.
+- **Status MCP Tools**: `src/mcp/tools/phase9-tools.ts` provides `runtime_system_status`, `runtime_capacity_status`, and `runtime_incident_snapshot` tools.

@@ -7,13 +7,16 @@ import { e2bWorkerManager } from '../runtime/e2b-worker-manager.js';
 import { redactSecrets } from '../security/redact.js';
 import { AppError } from '../shared/errors.js';
 import { logger } from '../shared/logger.js';
+import * as db from '../persistence/postgres/client.js';
 
 export class EvidenceLedgerService {
   private storageDir: string;
+  private useDb = false;
 
   constructor(storageDir = '.data/evidence') {
     this.storageDir = path.resolve(process.cwd(), storageDir);
-    if (!fs.existsSync(this.storageDir)) {
+    this.useDb = !!(process.env.DATABASE_URL || process.env.TEST_DB_URL);
+    if (!this.useDb && !fs.existsSync(this.storageDir)) {
       fs.mkdirSync(this.storageDir, { recursive: true });
     }
   }
@@ -25,7 +28,6 @@ export class EvidenceLedgerService {
     purpose?: string;
     relatedStepId?: string;
     expectedOutcome?: string;
-    // Real command execution details supplied from Controller terminal manager or worker exec
     realExecution?: {
       command: string;
       exitCode: number;
@@ -104,9 +106,45 @@ export class EvidenceLedgerService {
       isStale: false,
     };
 
-    const taskEvList = await this.listEvidence(params.taskId);
-    taskEvList.push(evidence);
-    this.saveEvidenceFile(params.taskId, taskEvList);
+    if (this.useDb) {
+      const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
+      await db.query(
+        `INSERT INTO evidence (
+          evidence_id, task_id, workspace_id, execution_id, command_fingerprint, category,
+          purpose, related_step_id, command_summary, start_head_sha, end_head_sha,
+          dirty_state_before, dirty_state_after, timestamp, exit_code, status,
+          duration_ms, truncated, output_excerpt, is_stale, stale_reason
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+        [
+          evidence.evidenceId,
+          evidence.taskId,
+          evidence.workspaceId,
+          evidence.executionId,
+          evidence.commandFingerprint,
+          evidence.category,
+          evidence.purpose,
+          evidence.relatedStepId || null,
+          evidence.commandSummary,
+          evidence.startHeadSha,
+          evidence.endHeadSha,
+          evidence.dirtyStateBefore,
+          evidence.dirtyStateAfter,
+          evidence.timestamp,
+          evidence.exitCode,
+          evidence.status,
+          evidence.durationMs,
+          evidence.truncated,
+          evidence.outputExcerpt,
+          evidence.isStale,
+          null,
+        ],
+        dbUrl
+      );
+    } else {
+      const taskEvList = await this.listEvidence(params.taskId);
+      taskEvList.push(evidence);
+      this.saveEvidenceFile(params.taskId, taskEvList);
+    }
 
     await taskStore.updateTask(params.taskId, (t) => {
       t.totalCommandCount += 1;
@@ -136,6 +174,42 @@ export class EvidenceLedgerService {
     status?: string,
     limit = 100
   ): Promise<ExecutionEvidence[]> {
+    if (this.useDb) {
+      const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
+      const res = await db.query(
+        `SELECT * FROM evidence
+         WHERE task_id = $1
+           AND ($2::VARCHAR IS NULL OR category = $2)
+           AND ($3::VARCHAR IS NULL OR status = $3)
+         ORDER BY timestamp ASC LIMIT $4`,
+        [taskId, category || null, status || null, limit],
+        dbUrl
+      );
+      return res.rows.map((row) => ({
+        evidenceId: row.evidence_id,
+        taskId: row.task_id,
+        workspaceId: row.workspace_id,
+        executionId: row.execution_id,
+        commandFingerprint: row.command_fingerprint,
+        category: row.category as EvidenceCategory,
+        purpose: row.purpose,
+        relatedStepId: row.related_step_id || undefined,
+        commandSummary: row.command_summary,
+        startHeadSha: row.start_head_sha,
+        endHeadSha: row.end_head_sha,
+        dirtyStateBefore: row.dirty_state_before,
+        dirtyStateAfter: row.dirty_state_after,
+        timestamp: new Date(row.timestamp).toISOString(),
+        exitCode: row.exit_code,
+        status: row.status as 'passed' | 'failed',
+        durationMs: row.duration_ms,
+        truncated: row.truncated,
+        outputExcerpt: row.output_excerpt,
+        isStale: row.is_stale,
+        staleReason: row.stale_reason || undefined,
+      }));
+    }
+
     const filePath = path.join(this.storageDir, `${taskId}.json`);
     if (!fs.existsSync(filePath)) {
       return [];
@@ -160,6 +234,19 @@ export class EvidenceLedgerService {
   }
 
   public async markStaleEvidence(taskId: string, reason: string): Promise<void> {
+    if (this.useDb) {
+      const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
+      const res = await db.query(
+        'UPDATE evidence SET is_stale = true, stale_reason = $2 WHERE task_id = $1 AND is_stale = false',
+        [taskId, reason],
+        dbUrl
+      );
+      if ((res.rowCount ?? 0) > 0) {
+        logger.info('validation.evidence_marked_stale', { taskId, reason });
+      }
+      return;
+    }
+
     const list = await this.listEvidence(taskId);
     let updated = false;
 

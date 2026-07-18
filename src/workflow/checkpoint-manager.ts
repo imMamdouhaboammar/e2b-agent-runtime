@@ -8,13 +8,16 @@ import { e2bWorkerManager } from '../runtime/e2b-worker-manager.js';
 import { redactSecrets } from '../security/redact.js';
 import { AppError } from '../shared/errors.js';
 import { logger } from '../shared/logger.js';
+import * as db from '../persistence/postgres/client.js';
 
 export class CheckpointManagerService {
   private storageDir: string;
+  private useDb = false;
 
   constructor(storageDir = '.data/checkpoints') {
     this.storageDir = path.resolve(process.cwd(), storageDir);
-    if (!fs.existsSync(this.storageDir)) {
+    this.useDb = !!(process.env.DATABASE_URL || process.env.TEST_DB_URL);
+    if (!this.useDb && !fs.existsSync(this.storageDir)) {
       fs.mkdirSync(this.storageDir, { recursive: true });
     }
   }
@@ -109,12 +112,52 @@ export class CheckpointManagerService {
       markdownContent,
     };
 
-    const taskDir = path.join(this.storageDir, params.taskId);
-    if (!fs.existsSync(taskDir)) {
-      fs.mkdirSync(taskDir, { recursive: true });
+    if (this.useDb) {
+      const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
+      await db.query(
+        `INSERT INTO checkpoints (
+          checkpoint_id, task_id, workspace_id, reason, created_at, content_hash,
+          repository, default_branch, original_base_sha, current_working_branch, current_head_sha,
+          task_scope, explicit_untouched_scope, governance_files_read, architecture_files_read,
+          important_files_and_symbols, decisions, commits, validation_summary, failures,
+          risks, exact_next_action, plan_version, remaining_repair_budget, markdown_content
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`,
+        [
+          checkpoint.checkpointId,
+          checkpoint.taskId,
+          checkpoint.workspaceId,
+          checkpoint.reason,
+          checkpoint.createdAt,
+          checkpoint.contentHash,
+          checkpoint.repository,
+          checkpoint.defaultBranch,
+          checkpoint.originalBaseSha,
+          checkpoint.currentWorkingBranch,
+          checkpoint.currentHeadSha,
+          checkpoint.taskScope,
+          checkpoint.explicitUntouchedScope,
+          JSON.stringify(checkpoint.governanceFilesRead || []),
+          JSON.stringify(checkpoint.architectureFilesRead || []),
+          JSON.stringify(checkpoint.importantFilesAndSymbols || []),
+          JSON.stringify(checkpoint.decisions || []),
+          JSON.stringify(checkpoint.commits || []),
+          checkpoint.validationSummary || null,
+          JSON.stringify(checkpoint.failures || []),
+          JSON.stringify(checkpoint.risks || []),
+          checkpoint.exactNextAction,
+          checkpoint.planVersion,
+          checkpoint.remainingRepairBudget,
+          checkpoint.markdownContent,
+        ],
+        dbUrl
+      );
+    } else {
+      const taskDir = path.join(this.storageDir, params.taskId);
+      if (!fs.existsSync(taskDir)) {
+        fs.mkdirSync(taskDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(taskDir, `${checkpointId}.json`), JSON.stringify(checkpoint, null, 2), 'utf-8');
     }
-
-    fs.writeFileSync(path.join(taskDir, `${checkpointId}.json`), JSON.stringify(checkpoint, null, 2), 'utf-8');
 
     await taskStore.updateTask(params.taskId, (t) => {
       if (!t.checkpointIds.includes(checkpointId)) {
@@ -128,6 +171,46 @@ export class CheckpointManagerService {
   }
 
   public async getCheckpoint(taskId: string, checkpointId: string): Promise<TaskCheckpoint> {
+    if (this.useDb) {
+      const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
+      const res = await db.query(
+        'SELECT * FROM checkpoints WHERE checkpoint_id = $1 AND task_id = $2',
+        [checkpointId, taskId],
+        dbUrl
+      );
+      if (res.rowCount === 0) {
+        throw new AppError(`Checkpoint ${checkpointId} not found for task ${taskId}`, 'CHECKPOINT_NOT_FOUND', 404);
+      }
+      const row = res.rows[0];
+      return {
+        checkpointId: row.checkpoint_id,
+        taskId: row.task_id,
+        workspaceId: row.workspace_id,
+        reason: row.reason,
+        createdAt: new Date(row.created_at).toISOString(),
+        contentHash: row.content_hash,
+        repository: row.repository,
+        defaultBranch: row.default_branch,
+        originalBaseSha: row.original_base_sha,
+        currentWorkingBranch: row.current_working_branch,
+        currentHeadSha: row.current_head_sha,
+        taskScope: row.task_scope,
+        explicitUntouchedScope: row.explicit_untouched_scope,
+        governanceFilesRead: row.governance_files_read || [],
+        architectureFilesRead: row.architecture_files_read || [],
+        importantFilesAndSymbols: row.important_files_and_symbols || [],
+        decisions: row.decisions || [],
+        commits: row.commits || [],
+        validationSummary: row.validation_summary || undefined,
+        failures: row.failures || [],
+        risks: row.risks || [],
+        exactNextAction: row.exact_next_action,
+        planVersion: row.plan_version,
+        remainingRepairBudget: row.remaining_repair_budget,
+        markdownContent: row.markdown_content,
+      };
+    }
+
     const filePath = path.join(this.storageDir, taskId, `${checkpointId}.json`);
     if (!fs.existsSync(filePath)) {
       throw new AppError(`Checkpoint ${checkpointId} not found for task ${taskId}`, 'CHECKPOINT_NOT_FOUND', 404);
@@ -137,6 +220,22 @@ export class CheckpointManagerService {
   }
 
   public async listCheckpoints(taskId: string): Promise<Array<{ checkpointId: string; reason: string; createdAt: string; headSha: string; contentHash: string }>> {
+    if (this.useDb) {
+      const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
+      const res = await db.query(
+        'SELECT checkpoint_id, reason, created_at, current_head_sha, content_hash FROM checkpoints WHERE task_id = $1 ORDER BY created_at DESC',
+        [taskId],
+        dbUrl
+      );
+      return res.rows.map((row) => ({
+        checkpointId: row.checkpoint_id,
+        reason: row.reason,
+        createdAt: new Date(row.created_at).toISOString(),
+        headSha: row.current_head_sha,
+        contentHash: row.content_hash,
+      }));
+    }
+
     const taskDir = path.join(this.storageDir, taskId);
     if (!fs.existsSync(taskDir)) return [];
 
