@@ -34,6 +34,7 @@ export interface ControllerConfig {
   terminalIdleTimeoutMs: number;
   workspaceIdleTimeoutMs: number;
   workspaceMaxLifetimeMs: number;
+  databaseUrl?: string;
 }
 
 const controllerConfigSchema = z.object({
@@ -108,6 +109,9 @@ const controllerConfigSchema = z.object({
     .string()
     .optional()
     .transform((val) => val || 'agent-coding-runtime-core:stable'),
+  DATABASE_URL: z
+    .string()
+    .optional(),
   MAX_TERMINALS_PER_WORKSPACE: z
     .string()
     .optional()
@@ -227,10 +231,14 @@ export function loadControllerConfig(
     terminalIdleTimeoutMs: result.data.TERMINAL_IDLE_TIMEOUT_MS,
     workspaceIdleTimeoutMs: result.data.WORKSPACE_IDLE_TIMEOUT_MS,
     workspaceMaxLifetimeMs: result.data.WORKSPACE_MAX_LIFETIME_MS,
+    databaseUrl: result.data.DATABASE_URL,
   };
 
   logger.registerSecret(config.apiKey);
   logger.registerSecret(config.mcpAccessToken);
+  if (config.databaseUrl) {
+    logger.registerSecret(config.databaseUrl);
+  }
 
   return config;
 }

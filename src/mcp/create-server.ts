@@ -11,6 +11,7 @@ import { registerPhase4Tools } from './tools/phase4-tools.js';
 import { registerPhase5Tools } from './tools/phase5-tools.js';
 import { registerPhase6Tools } from './tools/phase6-tools.js';
 import { registerPhase8Tools } from './tools/phase8-tools.js';
+import { registerPhase9Tools } from './tools/phase9-tools.js';
 import { loadControllerConfig } from '../config.js';
 
 
@@ -333,6 +334,13 @@ export function createControllerMcpServer(
   // Attach Phase 8 PR Feedback, CI Inspection & Repair Tools
   try {
     registerPhase8Tools(server);
+  } catch (err) {
+    // Non-fatal fallback
+  }
+
+  // Attach Phase 9 Hardening & Status Tools
+  try {
+    registerPhase9Tools(server, { registry, workerManager });
   } catch (err) {
     // Non-fatal fallback
   }

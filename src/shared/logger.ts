@@ -60,6 +60,16 @@ class Logger {
     };
     console.error(this.formatOutput(record));
   }
+
+  public debug(event: string, meta: Partial<LogRecord> = {}): void {
+    const record: LogRecord = {
+      event,
+      timestamp: new Date().toISOString(),
+      level: 'debug',
+      ...meta,
+    };
+    console.debug(this.formatOutput(record));
+  }
 }
 
 export const logger = new Logger();
