@@ -1,0 +1,6 @@
+{
+  "mode": "pr-only",
+  "requireSecretScan": true,
+  "requireValidationEvidence": true,
+  "requireCleanWorktree": true
+}

@@ -1,0 +1,17 @@
+name: repository-audit
+version: "1"
+description: Read-only repository inspection and architecture/security audit.
+taskModes:
+  - audit
+steps:
+  - scan_structure
+  - check_dependencies
+  - scan_secrets
+  - analyze_architecture
+  - report_findings
+requiredGates:
+  - no_mutations
+prohibitedActions:
+  - commit
+  - push
+  - write_file

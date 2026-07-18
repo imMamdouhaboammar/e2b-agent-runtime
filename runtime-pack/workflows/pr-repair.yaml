@@ -1,0 +1,18 @@
+name: pr-repair
+version: "1"
+description: Workflow for addressing feedback or CI failures on an existing PR branch.
+taskModes:
+  - feature
+  - bugfix
+steps:
+  - checkout_existing_branch
+  - diagnose_ci_failure
+  - apply_repair
+  - test_verification
+  - commit
+  - push_update
+requiredGates:
+  - ci_failure_addressed
+  - tests_passed
+prohibitedActions:
+  - merge

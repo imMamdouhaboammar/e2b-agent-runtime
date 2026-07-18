@@ -1,0 +1,33 @@
+name: feature-to-pr
+version: "1"
+description: Complete feature implementation flow leading to Pull Request handoff.
+taskModes:
+  - feature
+steps:
+  - repository_discovery
+  - governance_review
+  - task_brief
+  - branch_creation
+  - implementation
+  - tests
+  - validation
+  - diff_review
+  - secret_scan
+  - commit
+  - publication_preflight
+  - branch_publication
+  - pr_handoff
+requiredGates:
+  - repository_authorized
+  - feature_branch_active
+  - default_branch_unchanged
+  - no_force_push
+  - no_unresolved_conflicts
+  - no_secret_findings
+  - validation_evidence_recorded
+prohibitedActions:
+  - merge
+  - auto_merge
+  - push_default_branch
+  - publish_package
+  - create_release

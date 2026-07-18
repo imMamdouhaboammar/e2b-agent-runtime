@@ -1,0 +1,18 @@
+name: issue-to-pr
+version: "1"
+description: Workflow for resolving a GitHub issue and preparing PR handoff.
+taskModes:
+  - issue
+steps:
+  - issue_analysis
+  - plan_solution
+  - branch_creation
+  - execution
+  - validation
+  - commit
+  - publish
+requiredGates:
+  - issue_linked
+  - validation_recorded
+prohibitedActions:
+  - merge
