@@ -1,172 +1,135 @@
-# E2B Agent Runtime - Phase 1 PoC
+# E2B Agent Runtime
 
-A secure, tested TypeScript proof of concept demonstrating external client interaction with an **E2B Sandbox** running the **E2B MCP Gateway** with a filesystem MCP server.
-
-This is Phase 1 of a larger architecture enabling external applications (such as ChatGPT Web and MCP-compatible agents) to spawn and control temporary isolated E2B coding environments.
+An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using [E2B Sandboxes](https://e2b.dev), orchestrating disposable E2B Worker Sandboxes for safe tool execution.
 
 ---
 
-## Architecture & Data Flow
+## Phase 2 Architecture: Remote MCP Controller & Worker Sandbox Management
 
 ```mermaid
-flowchart LR
-    A[Local TypeScript PoC] -->|E2B SDK| B[Temporary E2B Sandbox]
-    B --> C[E2B MCP Gateway]
-    C --> D[Filesystem MCP Server]
-    A -->|Streamable HTTP and Bearer token| C
-    A -->|Commands API| B
-    A -->|Close client and kill| B
+flowchart TD
+    A[ChatGPT or MCP Client] -->|HTTPS and Bearer token| B[Controller MCP Endpoint]
+    B --> C[Authentication]
+    C --> D[Session Registry]
+    C --> E[E2B Worker Manager]
+    E --> F[Disposable Worker Sandbox]
+    B --> G[Lifecycle Reconciler]
+    G --> E
+    F -->|Command Result| B
+    B -->|MCP Response| A
 ```
 
-### Flow Lifecycle Overview
-1. **Sandbox Spawn**: The local process uses the official `e2b` SDK to spin up a temporary Sandbox configured with the E2B MCP Gateway and `@modelcontextprotocol/server-filesystem` server restricted to `/workspace`.
-2. **MCP Gateway Auth**: Retrieves the MCP Gateway external URL (`sandbox.getMcpUrl()`) and temporary access token (`sandbox.getMcpToken()`).
-3. **MCP Client Connectivity**: Connects using `@modelcontextprotocol/sdk` (`StreamableHTTPClientTransport`) over Streamable HTTP with `Authorization: Bearer <token>`.
-4. **Tool Discovery & Execution**: Discovers filesystem tools (`listTools()`), writes a marker file (`/workspace/poc-marker.txt`), reads back the content, and verifies content equality.
-5. **Terminal Validation**: Executes environment checks (`pwd`, `whoami`, `git --version`, `node --version`, `python3 --version`, and `git init` test) via `sandbox.commands.run()`.
-6. **Teardown & Cleanup**: Client connection is closed and Sandbox is destroyed in a `finally` block even if any preceding step throws an exception.
+### Trust Boundaries & Isolation Model
+
+| Component | E2B Lifecycle | Terminal / Filesystem Exposure | Secrets Access |
+|---|---|---|---|
+| **Controller Sandbox** | `onTimeout: "pause"`, `autoResume: true` | **NEVER** exposed to clients. Runs HTTP server only. | Holds `E2B_API_KEY` and `MCP_ACCESS_TOKEN`. |
+| **Worker Sandboxes** | `onTimeout: "kill"`, `autoResume: false` | Restricted to `/workspace`. Executes tool commands. | **ZERO** Controller secrets or API keys passed. |
+
+- **Controller Isolation**: External MCP clients can **never** execute commands inside the Controller Sandbox.
+- **Worker Isolation**: Worker Sandboxes are completely disposable. Commands are restricted to `/workspace` (paths escaping `/workspace` are rejected). Outputs are truncated at 128 KB.
+- **Secret Redaction**: All secrets (`E2B_API_KEY`, `MCP_ACCESS_TOKEN`, Bearer headers) are automatically redacted from logs and error messages.
 
 ---
 
-## Prerequisites & Requirements
+## Environment Configuration
 
-- **Node.js**: `v20.0.0` or higher
-- **Package Manager**: `pnpm` (`v9` or `v11`)
-- **E2B API Key**: Required for real cloud sandbox execution ([Get an E2B API Key](https://e2b.dev/docs/api-key))
-
----
-
-## Environment Setup
-
-1. **Clone & Install Dependencies**:
-   ```bash
-   git clone https://github.com/imMamdouhaboammar/e2b-agent-runtime.git
-   cd e2b-agent-runtime
-   pnpm install
-   ```
-
-2. **Configure Environment Variables**:
-   Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` and set your `E2B_API_KEY`:
-   ```env
-   E2B_API_KEY=e2b_sec_xxxxxxxxxxxxxxxxxxxx
-   E2B_SANDBOX_TIMEOUT_MS=600000
-   ```
-
-   > [!IMPORTANT]
-   > Never commit `.env` or print `E2B_API_KEY` or MCP access tokens to console, logs, or reports. `.env` is ignored by `.gitignore`.
-
----
-
-## Command Reference
-
-| Command | Description |
-|---|---|
-| `pnpm dev` / `pnpm poc` | Run the live E2B Sandbox MCP Proof of Concept |
-| `pnpm typecheck` | Run TypeScript type checking (`tsc --noEmit`) |
-| `pnpm lint` | Run code static analysis |
-| `pnpm test` | Run Vitest unit test suite |
-| `pnpm build` | Compile TypeScript source code to `dist/` |
-| `pnpm check` | Run full static validation suite (`typecheck` + `test` + `build`) |
-
----
-
-## Expected Output
-
-When running `pnpm poc` with a valid `E2B_API_KEY`, the script outputs a sanitized JSON summary:
-
-```json
-{
-  "status": "passed",
-  "sandboxCreated": true,
-  "mcpConnected": true,
-  "toolsDiscovered": 5,
-  "filesystemWriteVerified": true,
-  "filesystemReadVerified": true,
-  "terminalChecksPassed": true,
-  "sandboxDestroyed": true
-}
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
 ```
 
-If an error occurs or `E2B_API_KEY` is missing:
-
-```json
-{
-  "status": "failed",
-  "sandboxCreated": false,
-  "mcpConnected": false,
-  "toolsDiscovered": 0,
-  "filesystemWriteVerified": false,
-  "filesystemReadVerified": false,
-  "terminalChecksPassed": false,
-  "sandboxDestroyed": false,
-  "error": "Configuration error: E2B_API_KEY environment variable is required."
-}
-```
+| Variable | Description | Default | Required |
+|---|---|---|---|
+| `E2B_API_KEY` | E2B Cloud API Key | - | **Yes** |
+| `MCP_ACCESS_TOKEN` | Bearer token for MCP authentication | - | **Yes** |
+| `CONTROLLER_PORT` | Controller HTTP server port | `3000` | No |
+| `WORKER_DEFAULT_TIMEOUT_MS` | Default worker sandbox timeout | `600000` (10m) | No |
+| `WORKER_MAX_TIMEOUT_MS` | Maximum worker sandbox timeout | `3600000` (1h) | No |
+| `MAX_ACTIVE_WORKERS` | Maximum concurrent worker sandboxes | `3` | No |
+| `COMMAND_DEFAULT_TIMEOUT_MS` | Default command execution timeout | `60000` (1m) | No |
+| `COMMAND_MAX_TIMEOUT_MS` | Maximum command execution timeout | `300000` (5m) | No |
+| `COMMAND_OUTPUT_LIMIT_BYTES` | Output truncation limit in bytes | `131072` (128KB) | No |
+| `SESSION_REGISTRY_PATH` | Local JSON registry file path | `.data/sessions.json` | No |
 
 ---
 
-## Cleanup Guarantees
+## MCP Tools Reference
 
-Sandbox and client teardown are enforced using `try ... catch ... finally` blocks:
-- **MCP Client**: Closed via `client.close()` in `finally`.
-- **Sandbox Destruction**: Killed via `sandbox.kill()` in `finally`.
-- **Error Protection**: Teardown errors are logged as warnings and never overwrite or mask primary application errors.
-- **Process Status**: Exit code `1` is set whenever execution fails.
+The Remote MCP Controller exposes 6 tools to authenticated MCP clients:
 
----
-
-## Sandbox Inspection & E2B Dashboard
-
-- **Dashboard**: View active and recent sandboxes at [https://e2b.dev/dashboard](https://e2b.dev/dashboard).
-- **CLI Connection**: Inspect a running sandbox interactively using the E2B CLI:
-  ```bash
-  npx @e2b/cli connect <sandbox-id>
-  ```
-- **Gateway Logs**: Inside the sandbox, inspect gateway operations:
-  ```bash
-  cat /var/log/mcp-gateway/gateway.log
-  ```
+| Tool | Input Schema | Description |
+|---|---|---|
+| `runtime_create_session` | `{ timeoutMs?, taskLabel?, metadata? }` | Spawns a disposable E2B Worker Sandbox (`/workspace`). Returns opaque `sessionId`. |
+| `runtime_list_sessions` | `{}` | Lists all active and recent worker sessions and last command statuses. |
+| `runtime_get_session` | `{ sessionId }` | Retrieves detailed state and lifecycle info for a session. |
+| `runtime_run_command` | `{ sessionId, command, cwd?, timeoutMs? }` | Executes a shell command inside Worker `/workspace` with timeout and output limits. |
+| `runtime_destroy_session` | `{ sessionId }` | Idempotently kills a Worker Sandbox. |
+| `runtime_destroy_all_sessions` | `{ confirm: true }` | Emergency teardown of all active worker sandboxes. |
 
 ---
 
-## Optional MCP Inspector Debugging
-
-You can connect to a running E2B Sandbox MCP Gateway using the official MCP Inspector:
+## Operational Command Reference
 
 ```bash
-npx @modelcontextprotocol/inspector <mcp-url>
+# Local Development & Validation
+pnpm dev                   # Run Controller locally on port 3000
+pnpm typecheck             # Run TypeScript type checking
+pnpm lint                  # Run static analysis
+pnpm test                  # Run Vitest unit test suite (35 tests)
+pnpm build                 # Compile TypeScript source code to dist/
+pnpm check                 # Full static suite (typecheck + test + build)
+
+# E2B Controller Sandbox Management
+pnpm controller:provision  # Provision and deploy Controller to E2B Sandbox
+pnpm controller:status     # Check status of deployed Controller Sandbox
+pnpm controller:resume     # Resume paused Controller Sandbox
+pnpm controller:destroy    # Destroy Controller Sandbox (requires --confirm)
+pnpm controller:logs       # View sanitized Controller server logs
+```
+
+---
+
+## ChatGPT & MCP Inspector Connection Guide
+
+### Connecting MCP Inspector
+
+Run the official MCP Inspector against the provisioned Controller:
+
+```bash
+npx @modelcontextprotocol/inspector <mcp-endpoint-url>
+```
+
+When prompted for authorization, pass:
+```http
+Authorization: Bearer <MCP_ACCESS_TOKEN>
 ```
 
 > [!CAUTION]
-> When prompted for HTTP authorization, pass `Bearer <mcp-token>`. **Never paste, log, or commit your MCP token or API key into public repositories or chat windows.**
+> Never share or commit your `MCP_ACCESS_TOKEN`. Keep it safe in `.env`.
+
+### Connecting ChatGPT Developer Mode
+
+1. Deploy the Controller using `pnpm controller:provision`.
+2. Copy the public HTTPS MCP URL output by the provisioner (e.g. `https://<sandbox-host>-3000.e2b.dev/mcp`).
+3. In ChatGPT Developer Mode / Custom Actions setup:
+   - **Endpoint URL**: `https://<sandbox-host>-3000.e2b.dev/mcp`
+   - **Authentication**: Bearer Token
+   - **Token**: Your `MCP_ACCESS_TOKEN`
+4. Test by instructing ChatGPT: *"Create a runtime session and check Node.js version."*
 
 ---
 
-## Security Boundaries & Current Limitations
+## Controller vs Worker Lifecycle
 
-### Security Controls
-- Filesystem access is strictly scoped to `/workspace`. Root (`/`) and system paths are not exposed.
-- All secrets (`E2B_API_KEY`, MCP Bearer tokens) are programmatically redacted from outputs.
-- TLS and token-based Bearer authentication protect the external HTTP Gateway transport.
-
-### Phase 1 Limitations
-- **Ephemeral Storage**: Sandboxes are killed immediately after PoC execution completes.
-- **No Controller Sandbox**: Host process runs locally rather than inside a control sandbox.
-- **Single-User Scope**: Designed for single PoC runner execution.
+- **Controller Pause & Auto-Resume**: The Controller Sandbox uses `onTimeout: "pause"` and `autoResume: true`. If inactive, E2B pauses the Controller to save compute credits. Incoming HTTP requests automatically trigger E2B auto-resume.
+- **Worker Termination**: Worker Sandboxes use `onTimeout: "kill"`. Once expired or explicitly destroyed via `runtime_destroy_session`, all worker state is permanently cleaned up.
 
 ---
 
-## Explicit Phase 2 Scope
+## Phase 3 Roadmap (Explicit Out-of-Scope for Phase 2)
 
-The following items are intentionally deferred to Phase 2:
-- ChatGPT Developer Mode & Action integration
-- Controller Sandbox & persistent public gateway
 - GitHub App authentication & repository cloning
-- PR creation and branch publishing from inside E2B
-- Database persistence, Redis, and background task queues
-- Custom E2B templates, pause/resume, and multi-user auth
-- Deployment pipelines (Cloud Run, Hostinger, Vercel)
+- Branch publishing & Pull Request creation from inside Worker Sandboxes
+- Multi-user authentication & OAuth providers
+- Database persistence (PostgreSQL/Redis) & Background task queues
