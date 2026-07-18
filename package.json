@@ -1,0 +1,31 @@
+{
+  "name": "e2b-agent-runtime",
+  "version": "0.0.1",
+  "description": "E2B Sandbox MCP Gateway Proof of Concept (Phase 1)",
+  "type": "module",
+  "main": "dist/poc.js",
+  "scripts": {
+    "dev": "tsx src/poc.ts",
+    "poc": "tsx src/poc.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc",
+    "check": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.1.0",
+    "dotenv": "^16.4.7",
+    "e2b": "^2.35.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
