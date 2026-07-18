@@ -1,0 +1,379 @@
+# Instincts generated from https://github.com/imMamdouhaboammar/e2b-agent-runtime
+# Generated: 2026-07-18T09:01:10.756Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: e2b-agent-runtime-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: feat
+
+## Evidence
+
+- 2 commits analyzed
+- Detected conventional commit pattern
+- Examples: feat(config): add project setup, dependencies, and environment configuration, feat(poc): implement E2B Sandbox MCP Gateway proof of concept and unit test suite
+
+---
+id: e2b-agent-runtime-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Commit Length
+
+## Action
+
+Write moderate-length commit messages (~79 characters)
+
+## Evidence
+
+- Average commit message length: 79 chars
+- Based on 2 commits
+
+---
+id: e2b-agent-runtime-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: e2b-agent-runtime-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: e2b-agent-runtime-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: e2b-agent-runtime-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: e2b-agent-runtime-test-framework
+trigger: "when writing tests"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Test Framework
+
+## Action
+
+Use vitest as the test framework
+
+## Evidence
+
+- Test framework detected: vitest
+- File pattern: *.test.ts
+
+---
+id: e2b-agent-runtime-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Test Naming
+
+## Action
+
+Name test files using the pattern: *.test.ts
+
+## Evidence
+
+- File pattern: *.test.ts
+- Consistent across test files
+
+---
+id: e2b-agent-runtime-test-types
+trigger: "when planning tests for a feature"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Test Types
+
+## Action
+
+Write unit, integration tests to match project standards
+
+## Evidence
+
+- Test types detected: unit, integration
+- Coverage config: no
+
+---
+id: e2b-agent-runtime-instinct-file-naming
+trigger: "When creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Instinct File Naming
+
+## Action
+
+Name the file using camelCase
+
+## Evidence
+
+- Pattern: namingConventions.files = camelCase
+
+---
+id: e2b-agent-runtime-instinct-function-naming
+trigger: "When defining a new function"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Instinct Function Naming
+
+## Action
+
+Use camelCase for the function name
+
+## Evidence
+
+- Pattern: namingConventions.functions = camelCase
+
+---
+id: e2b-agent-runtime-instinct-class-naming
+trigger: "When defining a new class"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Instinct Class Naming
+
+## Action
+
+Use PascalCase for the class name
+
+## Evidence
+
+- Pattern: namingConventions.classes = PascalCase
+
+---
+id: e2b-agent-runtime-instinct-constant-naming
+trigger: "When declaring a constant"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Instinct Constant Naming
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for the constant name
+
+## Evidence
+
+- Pattern: namingConventions.constants = SCREAMING_SNAKE_CASE
+
+---
+id: e2b-agent-runtime-instinct-import-style
+trigger: "When importing modules"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Instinct Import Style
+
+## Action
+
+Use relative import paths
+
+## Evidence
+
+- Pattern: importStyle = relative
+
+---
+id: e2b-agent-runtime-instinct-export-style
+trigger: "When exporting modules or functions"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Instinct Export Style
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern: exportStyle = named
+
+---
+id: e2b-agent-runtime-instinct-test-file-naming
+trigger: "When creating a new test file"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Instinct Test File Naming
+
+## Action
+
+Name the file with the pattern *.test.ts
+
+## Evidence
+
+- Pattern: filePattern = *.test.ts
+
+---
+id: e2b-agent-runtime-instinct-test-framework
+trigger: "When writing tests"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Instinct Test Framework
+
+## Action
+
+Use the vitest framework
+
+## Evidence
+
+- Pattern: framework = vitest
+
+---
+id: e2b-agent-runtime-instinct-test-types
+trigger: "When adding tests"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Instinct Test Types
+
+## Action
+
+Write both unit and integration tests as appropriate
+
+## Evidence
+
+- Pattern: testTypes = [unit, integration]
+
+---
+id: e2b-agent-runtime-instinct-commit-format
+trigger: "When making a git commit"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: imMamdouhaboammar/e2b-agent-runtime
+---
+
+# E2b Agent Runtime Instinct Commit Format
+
+## Action
+
+Use conventional commits with the 'feat' prefix for new features
+
+## Evidence
+
+- Pattern: commit type = conventional
+- Pattern: prefixes = [feat]
+- Examples: 'feat(config): add project setup...'
+
