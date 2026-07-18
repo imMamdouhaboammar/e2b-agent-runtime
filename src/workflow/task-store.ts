@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import type { PoolClient, QueryResult, QueryResultRow } from 'pg';
 import {
   CodingTaskState,
   CodingTaskStateSchema,
@@ -25,14 +26,26 @@ export class TaskStore {
     }
   }
 
-  public async withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  private async query<T extends QueryResultRow = any>(
+    client: PoolClient | undefined,
+    text: string,
+    params: any[] = []
+  ): Promise<QueryResult<T>> {
+    if (client) {
+      return client.query<T>(text, params);
+    }
+
+    const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
+    return db.query<T>(text, params, dbUrl);
+  }
+
+  public async withLock<T>(key: string, fn: (client?: PoolClient) => Promise<T>): Promise<T> {
     if (this.useDb) {
       const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
       return db.withTransaction(async (client) => {
-        // Use PostgreSQL advisory lock on a text string
-        const lockHash = crypto.createHash('md5').update(key).digest().readInt32BE(0);
+        const lockHash = crypto.createHash('sha256').update(key).digest().readInt32BE(0);
         await client.query('SELECT pg_advisory_xact_lock($1)', [lockHash]);
-        return await fn();
+        return fn(client);
       }, dbUrl);
     }
 
@@ -71,8 +84,8 @@ export class TaskStore {
     currentHeadSha?: string;
     branchName?: string;
   }): Promise<CodingTaskState> {
-    return this.withLock(`workspace:${params.workspaceId}`, async () => {
-      const activeTask = await this.findActiveTaskByWorkspace(params.workspaceId);
+    return this.withLock(`workspace:${params.workspaceId}`, async (client) => {
+      const activeTask = await this.findActiveTaskByWorkspace(params.workspaceId, client);
       if (activeTask && !['COMPLETED', 'ABANDONED', 'FAILED', 'DESTROYED'].includes(activeTask.taskState)) {
         throw new AppError(
           `Workspace ${params.workspaceId} already has an active task ${activeTask.taskId} in state ${activeTask.taskState}`,
@@ -112,8 +125,8 @@ export class TaskStore {
       });
 
       if (this.useDb) {
-        const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
-        await db.query(
+        await this.query(
+          client,
           `INSERT INTO tasks (
             task_id, workspace_id, repository, task_mode, task_label, user_request_summary,
             acceptance_criteria, explicit_out_of_scope, related_issue, related_pull_request,
@@ -151,23 +164,21 @@ export class TaskStore {
             state.currentStepId || null,
             JSON.stringify(state.risks || []),
             state.repairAttemptLimitPerCycle || 2,
-          ],
-          dbUrl
+          ]
         );
       } else {
         await this.saveTaskFile(state);
         this.tasksCache.set(taskId, state);
       }
 
-      logger.info(`coding.task.created`, { taskId, workspaceId: params.workspaceId, taskMode: params.taskMode });
+      logger.info('coding.task.created', { taskId, workspaceId: params.workspaceId, taskMode: params.taskMode });
       return state;
     });
   }
 
-  public async getTask(taskId: string): Promise<CodingTaskState | null> {
+  public async getTask(taskId: string, client?: PoolClient): Promise<CodingTaskState | null> {
     if (this.useDb) {
-      const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
-      const res = await db.query('SELECT * FROM tasks WHERE task_id = $1', [taskId], dbUrl);
+      const res = await this.query(client, 'SELECT * FROM tasks WHERE task_id = $1', [taskId]);
       if (res.rowCount === 0) return null;
       const row = res.rows[0];
       return CodingTaskStateSchema.parse({
@@ -228,10 +239,13 @@ export class TaskStore {
     }
   }
 
-  public async findActiveTaskByWorkspace(workspaceId: string): Promise<CodingTaskState | null> {
-    const all = await this.listTasks();
+  public async findActiveTaskByWorkspace(
+    workspaceId: string,
+    client?: PoolClient
+  ): Promise<CodingTaskState | null> {
+    const all = await this.listTasks(client);
     const active = all.find(
-      (t) => t.workspaceId === workspaceId && !['COMPLETED', 'ABANDONED', 'FAILED', 'DESTROYED'].includes(t.taskState)
+      (task) => task.workspaceId === workspaceId && !['COMPLETED', 'ABANDONED', 'FAILED', 'DESTROYED'].includes(task.taskState)
     );
     return active || null;
   }
@@ -240,8 +254,8 @@ export class TaskStore {
     taskId: string,
     updater: (state: CodingTaskState) => CodingTaskState | Promise<CodingTaskState>
   ): Promise<CodingTaskState> {
-    return this.withLock(`task:${taskId}`, async () => {
-      const current = await this.getTask(taskId);
+    return this.withLock(`task:${taskId}`, async (client) => {
+      const current = await this.getTask(taskId, client);
       if (!current) {
         throw new AppError(`Task ${taskId} not found`, 'TASK_NOT_FOUND', 404);
       }
@@ -261,8 +275,8 @@ export class TaskStore {
       }
 
       if (this.useDb) {
-        const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
-        await db.query(
+        await this.query(
+          client,
           `UPDATE tasks SET
             task_state = $2, plan = $3, repair_cycle_count = $4, total_command_count = $5,
             current_head_sha = $6, branch_name = $7, checkpoint_ids = $8, blockers = $9,
@@ -292,8 +306,7 @@ export class TaskStore {
             JSON.stringify(validated.risks || []),
             validated.repairAttemptLimitPerCycle || 2,
             validated.relatedPullRequest || null,
-          ],
-          dbUrl
+          ]
         );
       } else {
         await this.saveTaskFile(validated);
@@ -303,14 +316,13 @@ export class TaskStore {
     });
   }
 
-  public async listTasks(): Promise<CodingTaskState[]> {
+  public async listTasks(client?: PoolClient): Promise<CodingTaskState[]> {
     if (this.useDb) {
-      const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
-      const res = await db.query('SELECT task_id FROM tasks ORDER BY updated_at DESC', [], dbUrl);
+      const res = await this.query(client, 'SELECT task_id FROM tasks ORDER BY updated_at DESC');
       const list: CodingTaskState[] = [];
       for (const row of res.rows) {
-        const t = await this.getTask(row.task_id);
-        if (t) list.push(t);
+        const task = await this.getTask(row.task_id, client);
+        if (task) list.push(task);
       }
       return list;
     }
@@ -319,14 +331,14 @@ export class TaskStore {
       return [];
     }
 
-    const files = fs.readdirSync(this.storageDir).filter((f) => f.endsWith('.json'));
+    const files = fs.readdirSync(this.storageDir).filter((file) => file.endsWith('.json'));
     const tasks: CodingTaskState[] = [];
 
-    for (const f of files) {
-      const taskId = f.replace('.json', '');
-      const t = await this.getTask(taskId);
-      if (t) {
-        tasks.push(t);
+    for (const file of files) {
+      const taskId = file.replace('.json', '');
+      const task = await this.getTask(taskId);
+      if (task) {
+        tasks.push(task);
       }
     }
 
@@ -334,10 +346,9 @@ export class TaskStore {
   }
 
   public async deleteTask(taskId: string): Promise<boolean> {
-    return this.withLock(`task:${taskId}`, async () => {
+    return this.withLock(`task:${taskId}`, async (client) => {
       if (this.useDb) {
-        const dbUrl = process.env.TEST_DB_URL || process.env.DATABASE_URL;
-        const res = await db.query('DELETE FROM tasks WHERE task_id = $1', [taskId], dbUrl);
+        const res = await this.query(client, 'DELETE FROM tasks WHERE task_id = $1', [taskId]);
         return (res.rowCount ?? 0) > 0;
       }
 
@@ -358,5 +369,3 @@ export class TaskStore {
     fs.renameSync(tempPath, filePath);
   }
 }
-
-export const taskStore = new TaskStore();

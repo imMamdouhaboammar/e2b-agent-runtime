@@ -1,12 +1,11 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import { PostgresLeaseManager } from '../../src/persistence/postgres/leases.js';
 import { PostgresRateLimiter } from '../../src/persistence/postgres/rateLimiter.js';
 import { QuotaManager, QuotaError } from '../../src/persistence/postgres/quotaManager.js';
 import { createControllerApp, setDraining, setStarted } from '../../src/controller/app.js';
-import { SessionRegistry } from '../../src/runtime/session-registry.js';
-import { E2BWorkerManager } from '../../src/runtime/e2b-worker-manager.js';
+import { TaskStore } from '../../src/workflow/task-store.js';
 import * as db from '../../src/persistence/postgres/client.js';
 
 vi.mock('../../src/persistence/postgres/client.js', () => ({
@@ -24,9 +23,8 @@ describe('Phase 9 Production Hardening Unit Tests', () => {
   describe('PostgresLeaseManager', () => {
     it('should acquire lease when database query reports success', async () => {
       const mockQuery = vi.mocked(db.query);
-      // First insert DO NOTHING, second update sets active
-      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] }); // insert success
-      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ owner_id: 'test-owner', expires_at: new Date(Date.now() + 100000) }] }); // active check
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ owner_id: 'test-owner', expires_at: new Date(Date.now() + 100000) }] });
 
       const manager = new PostgresLeaseManager('test-owner');
       const acquired = await manager.acquireLease('test-job', 10000);
@@ -35,9 +33,9 @@ describe('Phase 9 Production Hardening Unit Tests', () => {
 
     it('should fail to acquire lease when already held by another owner', async () => {
       const mockQuery = vi.mocked(db.query);
-      mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // insert conflict
-      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ owner_id: 'other-owner', expires_at: new Date(Date.now() + 100000) }] }); // active check false
-      mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // update failed
+      mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ owner_id: 'other-owner', expires_at: new Date(Date.now() + 100000) }] });
+      mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
 
       const manager = new PostgresLeaseManager('test-owner');
       const acquired = await manager.acquireLease('test-job', 10000);
@@ -48,22 +46,21 @@ describe('Phase 9 Production Hardening Unit Tests', () => {
   describe('PostgresRateLimiter', () => {
     it('should allow request when within limit', async () => {
       const mockQuery = vi.mocked(db.query);
-      mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // delete success
-      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ cnt: 1 }] }); // count within limit
-      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] }); // insert success
+      mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ cnt: 1 }] });
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] });
 
       const limiter = new PostgresRateLimiter();
-      // Enable database mode explicitly for the test
       limiter['useDb'] = true;
-      
+
       const limited = await limiter.isRateLimited('test-ip', 5, 60000);
       expect(limited).toBe(false);
     });
 
     it('should limit request when exceeding limit', async () => {
       const mockQuery = vi.mocked(db.query);
-      mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] }); // delete success
-      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ cnt: 6 }] }); // count exceeds limit
+      mockQuery.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+      mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [{ cnt: 6 }] });
 
       const limiter = new PostgresRateLimiter();
       limiter['useDb'] = true;
@@ -92,6 +89,33 @@ describe('Phase 9 Production Hardening Unit Tests', () => {
       quota['useDb'] = true;
 
       await expect(quota.checkQuota('token-1', 'active_workers', 5)).rejects.toThrow(QuotaError);
+    });
+  });
+
+  describe('TaskStore transaction locking', () => {
+    it('uses the transaction client for every database operation inside a locked task creation', async () => {
+      const transactionQuery = vi.fn()
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] })
+        .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      const transactionClient = { query: transactionQuery };
+
+      vi.mocked(db.withTransaction).mockImplementationOnce(async (callback: any) => callback(transactionClient));
+
+      const store = new TaskStore();
+      store['useDb'] = true;
+
+      const task = await store.createTask({
+        workspaceId: 'workspace-transaction-test',
+        repository: 'owner/repository',
+        taskMode: 'feature',
+        taskLabel: 'Transaction client regression test',
+        userRequestSummary: 'Verify all locked writes use one PostgreSQL transaction client',
+      });
+
+      expect(task.workspaceId).toBe('workspace-transaction-test');
+      expect(transactionQuery).toHaveBeenCalledTimes(3);
+      expect(db.query).not.toHaveBeenCalled();
     });
   });
 
