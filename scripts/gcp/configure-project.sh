@@ -10,7 +10,7 @@ REGION="europe-west1"
 CONFIG_NAME="e2b-agent-runtime-staging"
 
 # Select our configuration
-gcloud config configurations select "$CONFIG_NAME" &>/dev/null
+gcloud config configurations activate "$CONFIG_NAME" &>/dev/null
 
 echo "=== [1/3] Enabling Google Cloud APIs ==="
 # Enable services idempotently
@@ -30,6 +30,9 @@ gcloud services enable \
 
 echo "Verifying enabled services..."
 gcloud services list --enabled --filter="name:(run.googleapis.com OR artifactregistry.googleapis.com OR cloudbuild.googleapis.com OR secretmanager.googleapis.com)" --project="$PROJECT_ID"
+
+echo "Sleeping 20 seconds to allow newly enabled APIs to fully propagate globally..."
+sleep 20
 
 echo "=== [2/3] Creating Staging Artifact Registry ==="
 if gcloud artifacts repositories list --location="$REGION" --project="$PROJECT_ID" --format="value(name)" | grep -q "e2b-agent-runtime"; then

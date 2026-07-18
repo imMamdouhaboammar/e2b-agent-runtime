@@ -1,0 +1,33 @@
+# Cloud Ignore File (.cloudignore)
+# This file specifies files and directories that should be ignored by cloud deployments.
+
+# Ignore Git directory and config
+.git/
+.gitignore
+
+# Ignore Node.js dependencies
+node_modules/
+pnpm-debug.log*
+
+# Ignore environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Ignore local build and compilation outputs
+dist/
+coverage/
+*.log
+
+# Ignore local runtime/controller state files and local database data
+.data/
+.controller-state.json
+
+# Ignore developer-specific and IDE directories
+.agents/
+.claude/
+.codex/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
