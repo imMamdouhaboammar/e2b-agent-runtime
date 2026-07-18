@@ -13,12 +13,35 @@ export function getDbPool(databaseUrl?: string): pg.Pool {
     throw new Error('DATABASE_URL is not set. Database operations cannot proceed.');
   }
 
-  pool = new Pool({
-    connectionString: url,
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
-  });
+  let poolConfig: pg.PoolConfig;
+
+  try {
+    const parsedUrl = new URL(url);
+    poolConfig = {
+      user: decodeURIComponent(parsedUrl.username),
+      password: decodeURIComponent(parsedUrl.password),
+      host: parsedUrl.hostname,
+      port: parsedUrl.port ? parseInt(parsedUrl.port, 10) : 5432,
+      database: parsedUrl.pathname ? parsedUrl.pathname.substring(1) : 'postgres',
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    };
+  } catch (err) {
+    // Fallback if URL is not standard URL format
+    poolConfig = {
+      connectionString: url,
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    };
+  }
+
+  if (url.includes('supabase.co') || url.includes('pooler.supabase.com')) {
+    poolConfig.ssl = { rejectUnauthorized: false };
+  }
+
+  pool = new Pool(poolConfig);
 
   pool.on('error', (err) => {
     logger.error('Unexpected error on idle database client', { error: err.message });

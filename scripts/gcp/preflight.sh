@@ -20,7 +20,7 @@ echo "=== [2/2] Configuring Isolated gcloud Profile ==="
 # Check if configuration exists, create if not
 if gcloud config configurations list --format="value(name)" | grep -q "^${CONFIG_NAME}$"; then
   echo "gcloud configuration '${CONFIG_NAME}' already exists. Selecting it..."
-  gcloud config configurations select "$CONFIG_NAME"
+  gcloud config configurations activate "$CONFIG_NAME"
 else
   echo "Creating isolated gcloud configuration '${CONFIG_NAME}'..."
   gcloud config configurations create "$CONFIG_NAME"
