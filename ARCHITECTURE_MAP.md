@@ -1,54 +1,53 @@
 # Architecture Map: E2B Agent Runtime
 
-An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using E2B Sandboxes, orchestrating disposable E2B Worker Sandboxes for safe tool execution and GitHub branch publication.
+An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using E2B Sandboxes, orchestrating disposable E2B Worker Sandboxes for safe tool execution, PTY terminal sessions, runtime packs, and GitHub branch publication.
 
 ---
 
-## Phase 3 Architecture & Flow
+## Phase 4 PTY-backed Coding Workspace Architecture
 
 ```mermaid
 flowchart TD
-    A[ChatGPT / MCP Client] -->|HTTPS & Bearer token| B[Remote MCP Controller]
-    B --> C[Repository Authorization Policy]
-    C --> D[GitHub App Token Broker]
-    B --> E[Disposable E2B Worker Sandbox]
-    D -->|Scoped temporary token| F[E2B Git Operation]
-    F --> E
-    E --> G[Local Feature Branch]
-    G --> H[Tests & Commits]
-    H --> I[Publication Preflight & Secret Gate]
-    I --> D
-    D --> J[GitHub Feature Branch]
-    J --> K[Official GitHub Connector]
-    K --> L[Pull Request]
-    L --> M[Independent Review]
+    A[ChatGPT Web or MCP Client] -->|Remote MCP| B[Remote MCP Controller]
+    B --> C[Coding Workspace Orchestrator]
+    C --> D[Versioned E2B Worker Template]
+    D --> E[Disposable Worker Sandbox]
+    E --> F[Persistent PTY Shell]
+    E --> G[One-shot Commands]
+    E --> H[Repository Workspace]
+    E --> I[Agent Runtime Pack /opt/agent]
+    I --> J[Skills]
+    I --> K[Workflows]
+    I --> L[Policies]
+    F --> M[Interactive Build and Test Processes]
+    H --> N[Local Feature Branch]
+    N --> O[Phase 3 GitHub Publication]
+    O --> P[Official GitHub Connector]
+    P --> Q[Pull Request]
 ```
 
 ---
 
 ## Component Index
 
-### 1. Remote MCP Controller (`src/controller/`, `src/mcp/`)
+### 1. Remote MCP Controller & Workspace Orchestration (`src/controller/`, `src/mcp/`, `src/workspace/`)
 - **Server**: Express HTTP + Streamable HTTP MCP server on port 3000.
 - **Authentication**: Bearer token (`MCP_ACCESS_TOKEN`).
-- **Tools**: Exposes session lifecycle tools and 14 repository workspace tools (`repository_bind`, `repository_clone`, `repository_inspect`, `repository_read_file`, `repository_write_file`, `repository_apply_patch`, `git_create_branch`, `git_status`, `git_diff`, `git_commit`, `validation_record`, `github_preflight_publish`, `github_publish_branch`, `github_prepare_pr_handoff`).
+- **Coding Workspace Orchestrator**: `coding_workspace_start`, `coding_workspace_get`, `coding_workspace_destroy`, `workspace_list_ports`. Transactional workspace creation combining repo clone, base SHA verification, feature branch checkout, runtime bootstrap, and PTY startup.
 
-### 2. GitHub App Integration (`src/github/`)
-- **Config**: Parses `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_PRIVATE_KEY_BASE64`, allowlists, and default branch prefix.
-- **Token Broker** (`token-broker.ts`): Uses `@octokit/auth-app` to generate short-lived, repository-scoped installation tokens. Caches tokens in memory with refresh skew. Registers secrets with `logger.registerSecret` for automatic redaction.
-- **Authorization Policy** (`authorization.ts`): Enforces owner/repo validation and explicit allowlists. Rejects malformed strings, URLs, query params, SSH injections, and local paths.
-- **Client Wrapper** (`client.ts`): Interacts with GitHub REST API via Octokit to query repository metadata, default branch, and branch SHAs.
-- **Secret Gate** (`secret-gate.ts`): Scans committed diffs and changed files for private keys, AWS/GitHub tokens, and credential patterns before publication.
-- **Preflight Validator** (`preflight.ts`): Verifies workspace clean status, commit history beyond base, forbidden paths (`.env`, `.git/`), base branch drift (`baseMoved`), and executed validation records.
+### 2. Persistent PTY & Terminal Sessions (`src/terminal/`)
+- **Terminal Session Manager**: `terminal_open`, `terminal_exec`, `terminal_write`, `terminal_read`, `terminal_resize`, `terminal_send_signal`, `terminal_close`, `terminal_list`.
+- **PTY Buffer**: Monotonic global byte cursor ring buffer (`PTY_BUFFER_MAX_BYTES=1048576`), gap detection, UTF-8 chunking, and output truncation.
+- **Signal Restriction**: Restricts allowed signals to `SIGINT`, `SIGTERM`, `SIGHUP`, `SIGWINCH`.
 
-### 3. Worker Workspace & Git Operations (`src/e2b/`, `src/security/`)
-- **File Safety** (`file-safety.ts`): Enforces that all file operations remain strictly inside `/workspace/repository`. Rejects path traversal (`..`), null bytes, `.git/` directory access, and secret files (`.env`).
-- **Worker Git Operations** (`git-operations.ts`): Executes `git clone`, `git branch`, `git status`, `git diff`, `git commit`, and `git push` inside the E2B Worker Sandbox. Uses inline `http.extraheader="AUTHORIZATION: basic <base64>"` to pass installation tokens without saving credentials to `.git/config` or process environment.
+### 3. Repository Runtime Pack & Skills System (`runtime-pack/`, `src/runtime/`)
+- **Runtime Pack**: System instructions handbook, version metadata (`MANIFEST.json`), skills index (`SKILLS_INDEX.md`), workflow definitions, markdown templates, security policies, and executable bootstrap (`agent-bootstrap`).
+- **Skills Runtime Registry**: Loaded skills dispatcher, workflow schema validator (Zod), and session checkpoint store.
 
-### 4. Runtime Registry & Locks (`src/runtime/`)
-- **Session Registry** (`session-registry.ts`): Persists session state, `repositoryState`, and `validationRecords` to JSON registry (`.data/sessions.json`) using atomic file writes.
-- **Async Lock Manager** (`repository-lock.ts`): Prevents concurrent race conditions on per-session repository operations.
-- **Concurrency Gate** (`concurrency-gate.ts`): Limits maximum concurrent worker sandboxes (`MAX_ACTIVE_WORKERS`).
+### 4. GitHub App Integration (`src/github/`)
+- **Token Broker**: Generates short-lived, repository-scoped installation tokens.
+- **Authorization Policy**: Enforces owner/repo validation and explicit allowlists.
+- **Secret Gate & Preflight**: Scans committed diffs for secrets before branch publication.
 
 ---
 
@@ -56,6 +55,6 @@ flowchart TD
 
 | Scope | Exposed Credentials | Allowed Operations |
 |---|---|---|
-| **Controller Sandbox** | `E2B_API_KEY`, `MCP_ACCESS_TOKEN`, `GITHUB_APP_PRIVATE_KEY` | Auth broker, token minting, policy authorization, worker lifecycle |
-| **Worker Sandbox** | Short-lived installation token passed inline per command | Local checkout, code modifications, test execution, branch publication |
-| **MCP Client (ChatGPT)** | Bearer Token (`MCP_ACCESS_TOKEN`) | High-level tool invocation via MCP. Never receives private key or Git tokens. |
+| **Controller Sandbox** | `E2B_API_KEY`, `MCP_ACCESS_TOKEN`, `GITHUB_APP_PRIVATE_KEY` | Auth broker, token minting, policy authorization, worker lifecycle, workspace orchestration |
+| **Worker Sandbox** | Short-lived installation token passed inline per command | Local checkout, PTY interactive sessions, one-shot commands, dev servers, test execution, branch publication |
+| **MCP Client (ChatGPT)** | Bearer Token (`MCP_ACCESS_TOKEN`) | High-level Remote MCP tool calls. ChatGPT is the reasoning layer. |

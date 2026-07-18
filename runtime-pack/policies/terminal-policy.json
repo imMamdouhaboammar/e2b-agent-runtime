@@ -1,0 +1,8 @@
+{
+  "maxActiveTerminals": 3,
+  "allowedSignals": ["SIGINT", "SIGTERM", "SIGHUP", "SIGWINCH"],
+  "allowedShells": ["/bin/bash", "/bin/sh", "bash", "sh"],
+  "defaultCwd": "/workspace/repository",
+  "allowedCwdPrefix": "/workspace",
+  "maxBufferBytes": 1048576
+}

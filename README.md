@@ -1,27 +1,29 @@
 # E2B Agent Runtime
 
-An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using [E2B Sandboxes](https://e2b.dev), orchestrating disposable E2B Worker Sandboxes for safe tool execution, repository workspace management, and GitHub branch publication.
+An architecture and runtime for running a **Remote Model Context Protocol (MCP) Controller** in an isolated cloud computer using [E2B Sandboxes](https://e2b.dev), orchestrating disposable E2B Worker Sandboxes for safe tool execution, persistent PTY terminal sessions, runtime packs, structured workflows, and GitHub branch publication.
 
 ---
 
-## Phase 3 Architecture: GitHub Integration & Repository Workspace Management
+## Phase 4 Architecture: PTY-backed Coding Workspace Layer
 
 ```mermaid
 flowchart TD
-    A[ChatGPT MCP Client] -->|HTTPS & Bearer token| B[Remote MCP Controller]
-    B --> C[Repository Authorization Policy]
-    C --> D[GitHub App Token Broker]
-    B --> E[Disposable E2B Worker Sandbox]
-    D -->|Scoped temporary token| F[E2B Git Operation]
-    F --> E
-    E --> G[Local Feature Branch]
-    G --> H[Tests & Commits]
-    H --> I[Publication Preflight & Secret Gate]
-    I --> D
-    D --> J[GitHub Feature Branch]
-    J --> K[Official GitHub Connector]
-    K --> L[Pull Request]
-    L --> M[Independent Review]
+    A[ChatGPT Web / Remote MCP Client] -->|HTTPS & Bearer token| B[Remote MCP Controller]
+    B --> C[Coding Workspace Orchestrator]
+    C --> D[Versioned E2B Worker Template]
+    D --> E[Disposable E2B Worker Sandbox]
+    E --> F[Persistent PTY Shell]
+    E --> G[One-shot Commands]
+    E --> H[Repository Workspace]
+    E --> I[Agent Runtime Pack /opt/agent]
+    I --> J[Skills]
+    I --> K[Workflows]
+    I --> L[Policies]
+    F --> M[Interactive Build & Test Processes]
+    H --> N[Local Feature Branch]
+    N --> O[Phase 3 GitHub Publication]
+    O --> P[Official GitHub Connector]
+    P --> Q[Pull Request]
 ```
 
 ### Trust Boundaries & Isolation Model
@@ -29,10 +31,10 @@ flowchart TD
 | Component | E2B Lifecycle | Terminal / Filesystem Exposure | Secrets Access |
 |---|---|---|---|
 | **Controller Sandbox** | `onTimeout: "pause"`, `autoResume: true` | **NEVER** exposed to clients. Runs HTTP server only. | Holds `E2B_API_KEY`, `MCP_ACCESS_TOKEN`, and `GITHUB_APP_PRIVATE_KEY`. |
-| **Worker Sandboxes** | `onTimeout: "kill"`, `autoResume: false` | Restricted to `/workspace`. Executes tool & Git commands. | Receives short-lived, repository-scoped installation access tokens inline only. **ZERO** master keys or private keys passed. |
+| **Worker Sandboxes** | `onTimeout: "kill"`, `autoResume: false` | Restricted to `/workspace`. Executes tool, PTY, & Git commands. | Receives short-lived, repository-scoped installation access tokens inline only. **ZERO** master keys or private keys passed. |
 
-- **Controller Isolation**: External MCP clients can **never** execute commands inside the Controller Sandbox.
-- **Worker Isolation**: Worker Sandboxes are completely disposable. Commands are restricted to `/workspace` (paths escaping `/workspace` are rejected). Outputs are truncated at 128 KB.
+- **ChatGPT is the Reasoning Layer**: ChatGPT Web or another Remote MCP client acts as the reasoning coding agent, directly controlling the terminal via MCP. No nested inner AI CLI (such as OpenCode or Codex CLI) is installed or run by default.
+- **Worker Isolation**: Worker Sandboxes are completely disposable. Persistent PTY sessions and command execution are restricted to `/workspace/repository`.
 - **Secret Redaction**: All secrets (`E2B_API_KEY`, `MCP_ACCESS_TOKEN`, `GITHUB_APP_PRIVATE_KEY`, installation access tokens) are automatically redacted from logs, error messages, and diffs.
 
 ---
@@ -49,107 +51,68 @@ cp .env.example .env
 | `E2B_API_KEY` | E2B Cloud API Key | - | **Yes** |
 | `MCP_ACCESS_TOKEN` | Bearer token for MCP authentication | - | **Yes** |
 | `CONTROLLER_PORT` | Controller HTTP server port | `3000` | No |
+| `E2B_WORKER_TEMPLATE` | Private versioned E2B Worker Template tag | `agent-coding-runtime-core:stable` | No |
+| `MAX_ACTIVE_WORKERS` | Maximum concurrent worker sandboxes | `3` | No |
+| `MAX_TERMINALS_PER_WORKSPACE` | Maximum active terminals per workspace | `3` | No |
+| `PTY_BUFFER_MAX_BYTES` | PTY ring buffer capacity limit | `1048576` (1MB) | No |
+| `PTY_READ_DEFAULT_BYTES` | Default PTY read size | `65536` (64KB) | No |
+| `PTY_READ_MAX_BYTES` | Maximum PTY read chunk size | `262144` (256KB) | No |
 | `WORKER_DEFAULT_TIMEOUT_MS` | Default worker sandbox timeout | `600000` (10m) | No |
 | `WORKER_MAX_TIMEOUT_MS` | Maximum worker sandbox timeout | `3600000` (1h) | No |
-| `MAX_ACTIVE_WORKERS` | Maximum concurrent worker sandboxes | `3` | No |
-| `COMMAND_DEFAULT_TIMEOUT_MS` | Default command execution timeout | `60000` (1m) | No |
-| `COMMAND_MAX_TIMEOUT_MS` | Maximum command execution timeout | `300000` (5m) | No |
-| `COMMAND_OUTPUT_LIMIT_BYTES` | Output truncation limit in bytes | `131072` (128KB) | No |
-| `SESSION_REGISTRY_PATH` | Local JSON registry file path | `.data/sessions.json` | No |
 | `GITHUB_APP_ID` | GitHub App ID | - | If GitHub publishing enabled |
 | `GITHUB_APP_INSTALLATION_ID` | GitHub App Installation ID | - | If GitHub publishing enabled |
 | `GITHUB_APP_PRIVATE_KEY` | GitHub App PEM Private Key | - | If GitHub publishing enabled |
-| `GITHUB_APP_PRIVATE_KEY_BASE64` | Base64 encoded PEM Private Key | - | Alternative to raw key |
-| `GITHUB_ALLOWED_REPOSITORIES` | Comma-separated `owner/repo` allowlist | - | No |
-| `GITHUB_ALLOWED_OWNERS` | Comma-separated owner allowlist | - | No |
-| `GITHUB_DEFAULT_BRANCH_PREFIX` | Branch prefix for feature branches | `agent/` | No |
 
 ---
 
-## MCP Tools Reference
+## Remote MCP Tools Reference
 
-The Remote MCP Controller exposes 20 tools to authenticated MCP clients:
+The Remote MCP Controller exposes 34 tools to authenticated MCP clients across Phase 1, Phase 2, Phase 3, and Phase 4:
 
-### Core Runtime Tools
-
-| Tool | Input Schema | Description |
-|---|---|---|
-| `runtime_create_session` | `{ timeoutMs?, taskLabel?, metadata? }` | Spawns a disposable E2B Worker Sandbox (`/workspace`). Returns opaque `sessionId`. |
-| `runtime_list_sessions` | `{}` | Lists all active and recent worker sessions and last command statuses. |
-| `runtime_get_session` | `{ sessionId }` | Retrieves detailed state and lifecycle info for a session. |
-| `runtime_run_command` | `{ sessionId, command, cwd?, timeoutMs? }` | Executes a shell command inside Worker `/workspace` with timeout and output limits. |
-| `runtime_destroy_session` | `{ sessionId }` | Idempotently kills a Worker Sandbox. |
-| `runtime_destroy_all_sessions` | `{ confirm: true }` | Emergency teardown of all active worker sandboxes. |
-
-### Repository & Git Tools (Phase 3)
+### Phase 4 Coding Workspace & Terminal Tools
 
 | Tool | Input Schema | Description |
 |---|---|---|
-| `repository_bind` | `{ sessionId, repository, baseBranch? }` | Bind session to an authorized GitHub repository (`owner/repo`). |
-| `repository_clone` | `{ sessionId }` | Clone base branch into `/workspace/repository` using installation access token. |
-| `repository_inspect` | `{ sessionId }` | Return structured repository summary (branches, HEAD, clean/dirty, manifests, governance files). |
-| `repository_read_file` | `{ sessionId, path, startLine?, endLine? }` | Read safe file content inside `/workspace/repository`. Rejects `.git` and `.env`. |
-| `repository_write_file` | `{ sessionId, path, content }` | Write file content inside `/workspace/repository` safely. |
-| `repository_apply_patch` | `{ sessionId, patch }` | Apply unified diff patch inside `/workspace/repository`. |
-| `git_create_branch` | `{ sessionId, branchName }` | Create local feature branch with `agent/` prefix from base SHA. |
-| `git_status` | `{ sessionId }` | Return structured Git status (staged, unstaged, untracked, clean). |
-| `git_diff` | `{ sessionId, mode?, pathFilters? }` | Return bounded unified diff (working, staged, base comparison). Secrets redacted. |
-| `git_commit` | `{ sessionId, message, paths }` | Create local Git commit from explicitly staged paths using bot identity (`E2B Agent Runtime`). |
-| `validation_record` | `{ sessionId, command, category, exitCode, durationMs, summary? }` | Record executed validation command for preflight correlation. |
-| `github_preflight_publish` | `{ sessionId }` | Verify clean worktree, secret gate, base branch drift (`baseMoved`), and validation records. |
-| `github_publish_branch` | `{ sessionId, confirmation }` | Publish feature branch to GitHub using short-lived installation access token. |
-| `github_prepare_pr_handoff` | `{ sessionId }` | Generate structured PR handoff metadata for ChatGPT official GitHub connector. |
+| `agent_runtime_info` | `{}` | Returns runtime version, skills pack version, workflow schema version, and security mode. |
+| `agent_list_skills` | `{}` | Lists all runtime skills with descriptions and content hashes. |
+| `agent_load_skill` | `{ skillName, maxBytes? }` | Loads full or bounded content of a runtime skill. Rejects path traversal. |
+| `agent_get_workflow` | `{ workflowName }` | Returns structured workflow definition validated against Zod schema. |
+| `agent_get_operating_instructions` | `{}` | Returns operating handbook instructions for the Worker Sandbox session. |
+| `coding_workspace_start` | `{ repository, taskMode?, baseBranch?, branchName?, templateTag?, initialTerminal? }` | Transactionally starts a coding workspace with clone, feature branch, bootstrap, and PTY. |
+| `coding_workspace_get` | `{ workspaceId }` | Returns detailed workspace state and active terminals. |
+| `terminal_open` | `{ workspaceId, shell?, cwd?, cols?, rows? }` | Opens a persistent interactive PTY shell inside `/workspace/repository`. |
+| `terminal_exec` | `{ workspaceId, command, cwd?, timeoutMs? }` | Executes a deterministic one-shot command inside the Worker Sandbox. |
+| `terminal_write` | `{ workspaceId, terminalId, input }` | Sends input string or control sequences to an active PTY. |
+| `terminal_read` | `{ workspaceId, terminalId, cursor?, maxBytes? }` | Reads incremental output from PTY using monotonic byte cursors. |
+| `terminal_resize` | `{ workspaceId, terminalId, cols, rows }` | Resizes active PTY window dimensions. |
+| `terminal_send_signal` | `{ workspaceId, terminalId, signal }` | Sends safe signal (`SIGINT`, `SIGTERM`, `SIGHUP`, `SIGWINCH`) to PTY process. |
+| `terminal_close` | `{ workspaceId, terminalId }` | Closes active PTY session cleanly. |
+| `terminal_list` | `{ workspaceId }` | Lists all active terminals for a workspace. |
+| `workspace_list_ports` | `{ workspaceId }` | Detects open listening ports and preview URLs inside the Worker Sandbox. |
+| `agent_create_checkpoint` | `{ workspaceId, repository?, branch?, nextAction? }` | Saves structured session checkpoint metadata. |
+| `coding_workspace_destroy` | `{ workspaceId, confirm: true }` | Destroys coding workspace and associated Worker Sandbox. |
 
 ---
 
-## Operational Command Reference
+## Development & Testing Commands
 
 ```bash
-# Local Development & Validation
-pnpm dev                   # Run Controller locally on port 3000
-pnpm typecheck             # Run TypeScript type checking
-pnpm lint                  # Run static analysis
-pnpm test                  # Run Vitest unit test suite (39 tests)
-pnpm build                 # Compile TypeScript source code to dist/
-pnpm check                 # Full static suite (typecheck + test + build)
+# Full static verification, unit tests, and build
+pnpm check
 
-# GitHub App Operations & Diagnostics
-pnpm github:verify-app                     # Verify GitHub App authentication
-pnpm github:list-accessible-repositories  # List repositories accessible to App installation
-pnpm github:verify-repository <owner/repo> # Check authorization and API details for a repo
+# Run unit tests only
+pnpm test
 
-# Integration Tests (Gated by environment variables)
-pnpm test:integration:private-clone       # Test private repo cloning
-pnpm test:integration:publish             # Test real feature branch push to disposable repo
+# Template CLI Management
+pnpm template:audit-base
+pnpm template:build
+pnpm template:verify
+pnpm template:promote --confirm
+pnpm template:info
 
-# E2B Controller Sandbox Management
-pnpm controller:provision  # Provision and deploy Controller to E2B Sandbox
-pnpm controller:status     # Check status of deployed Controller Sandbox
-pnpm controller:resume     # Resume paused Controller Sandbox
-pnpm controller:destroy    # Destroy Controller Sandbox (requires --confirm)
-pnpm controller:logs       # View sanitized Controller server logs
+# Gated Integration Tests
+pnpm test:integration:workspace
+pnpm test:integration:pty
+pnpm test:integration:template
+pnpm test:integration:ports
 ```
-
----
-
-## GitHub App Setup Guide
-
-1. Create a GitHub App in your organization or personal account settings.
-2. Grant **Repository permissions**:
-   - `Contents`: Read & write (Required for branch publication)
-   - `Metadata`: Read-only (Required for repository inspection)
-3. Generate a Private Key (.pem file) and store it securely (e.g. in `.env` or secret manager).
-4. Install the GitHub App on your target repositories.
-5. Set `GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`, and `GITHUB_APP_PRIVATE_KEY` in Controller environment.
-
----
-
-## Official GitHub Connector Handoff Workflow
-
-After publishing a feature branch via `github_publish_branch`:
-1. Call `github_prepare_pr_handoff` to obtain the structured handoff metadata.
-2. Copy or pass the suggested PR title, body, branch name, and commit summary to ChatGPT.
-3. Use ChatGPT's official GitHub connector to:
-   - Verify the published branch on GitHub.
-   - Open the Pull Request targeting the base branch.
-   - Inspect CI build/test statuses on GitHub.

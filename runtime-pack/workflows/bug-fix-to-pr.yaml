@@ -1,0 +1,22 @@
+name: bug-fix-to-pr
+version: "1"
+description: Focused bug fix workflow with regression test enforcement.
+taskModes:
+  - bugfix
+steps:
+  - reproduce_issue
+  - identify_root_cause
+  - write_failing_test
+  - implement_fix
+  - verify_test_passes
+  - secret_scan
+  - commit
+  - branch_publication
+  - pr_handoff
+requiredGates:
+  - regression_test_added
+  - test_passed
+  - no_secret_findings
+prohibitedActions:
+  - merge
+  - push_default_branch

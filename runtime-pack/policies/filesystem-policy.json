@@ -1,0 +1,5 @@
+{
+  "allowedRoot": "/workspace/repository",
+  "forbiddenPaths": [".git/", ".env", ".env.*", "**/node_modules/**"],
+  "allowPathTraversal": false
+}

@@ -1,0 +1,7 @@
+{
+  "allowDirectPushDefaultBranch": false,
+  "allowForcePush": false,
+  "allowMerge": false,
+  "requiredBranchPrefix": "feat/",
+  "inlineAuthOnly": true
+}

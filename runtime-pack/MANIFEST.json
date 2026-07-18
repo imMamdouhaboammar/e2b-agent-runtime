@@ -1,0 +1,9 @@
+{
+  "runtimeVersion": "0.1.0",
+  "skillsPackVersion": "1.0.0",
+  "workflowSchemaVersion": "1",
+  "templateName": "agent-coding-runtime-core",
+  "templateTag": "v0.1.0",
+  "mode": "pr-only",
+  "builtAt": "2026-07-18T12:36:00Z"
+}

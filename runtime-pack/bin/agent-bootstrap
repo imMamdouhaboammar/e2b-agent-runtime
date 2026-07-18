@@ -1,0 +1,91 @@
+#!/usr/bin/env node
+import fs from 'fs';
+import path from 'path';
+
+const repoRoot = process.env.REPOSITORY_ROOT || '/workspace/repository';
+const taskMode = process.env.TASK_MODE || 'feature';
+
+function detectStack() {
+  const manifests = [];
+  const lockfiles = [];
+  const governanceFiles = [];
+  const architectureFiles = [];
+  const languages = [];
+  let packageManager = 'npm';
+
+  if (fs.existsSync(repoRoot)) {
+    const entries = fs.readdirSync(repoRoot);
+    for (const file of entries) {
+      const lower = file.toLowerCase();
+      if (lower === 'package.json') {
+        manifests.push(file);
+        languages.push('TypeScript/JavaScript');
+      } else if (lower === 'cargo.toml') {
+        manifests.push(file);
+        languages.push('Rust');
+      } else if (lower === 'go.mod') {
+        manifests.push(file);
+        languages.push('Go');
+      } else if (lower === 'pyproject.toml' || lower === 'requirements.txt') {
+        manifests.push(file);
+        languages.push('Python');
+      }
+
+      if (lower === 'pnpm-lock.yaml') {
+        lockfiles.push(file);
+        packageManager = 'pnpm';
+      } else if (lower === 'package-lock.json') {
+        lockfiles.push(file);
+        packageManager = 'npm';
+      } else if (lower === 'yarn.lock') {
+        lockfiles.push(file);
+        packageManager = 'yarn';
+      } else if (lower === 'uv.lock') {
+        lockfiles.push(file);
+        packageManager = 'uv';
+      }
+
+      if (['agents.md', 'readme.md', 'contributing.md'].includes(lower)) {
+        governanceFiles.push(file);
+      }
+      if (lower.includes('arch') || lower.includes('design') || lower.includes('spec')) {
+        architectureFiles.push(file);
+      }
+    }
+  }
+
+  const candidateCommands = {};
+  if (manifests.includes('package.json')) {
+    candidateCommands.install = [`${packageManager} install`];
+    candidateCommands.test = [`${packageManager} test`];
+    candidateCommands.lint = [`${packageManager} lint`];
+    candidateCommands.typecheck = [`${packageManager} typecheck`];
+    candidateCommands.build = [`${packageManager} build`];
+  }
+
+  return {
+    ready: true,
+    runtimeVersion: '0.1.0',
+    repositoryRoot: repoRoot,
+    taskMode,
+    languages: Array.from(new Set(languages)),
+    packageManager,
+    manifests,
+    lockfiles,
+    governanceFiles,
+    architectureFiles,
+    candidateCommands,
+    selectedSkills: [
+      'tool-routing',
+      'security-and-trust',
+      'repository-discovery',
+      'task-modes',
+      'change-execution',
+      'validation-and-ci',
+      'pr-creation',
+    ],
+    workflow: taskMode === 'bugfix' ? 'bug-fix-to-pr' : 'feature-to-pr',
+  };
+}
+
+console.log(JSON.stringify(detectStack(), null, 2));
