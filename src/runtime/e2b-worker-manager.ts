@@ -25,6 +25,12 @@ export class E2BWorkerManager {
     this.registry = registry;
   }
 
+  public async getSandbox(e2bSandboxId: string): Promise<Sandbox> {
+    return await Sandbox.connect(e2bSandboxId, {
+      apiKey: this.config.apiKey,
+    });
+  }
+
   public async createWorkerSession(options: {
     timeoutMs?: number;
     taskLabel?: string;
@@ -133,9 +139,7 @@ export class E2BWorkerManager {
 
     try {
       // Reconnect to E2B Worker Sandbox
-      sandbox = await Sandbox.connect(session.e2bSandboxId, {
-        apiKey: this.config.apiKey,
-      });
+      sandbox = await this.getSandbox(session.e2bSandboxId);
 
       const res = await sandbox.commands.run(command, {
         cwd,
@@ -209,9 +213,7 @@ export class E2BWorkerManager {
     }
 
     try {
-      const sandbox = await Sandbox.connect(session.e2bSandboxId, {
-        apiKey: this.config.apiKey,
-      }).catch(() => null);
+      const sandbox = await this.getSandbox(session.e2bSandboxId).catch(() => null);
 
       if (sandbox) {
         await sandbox.kill().catch(() => {});
