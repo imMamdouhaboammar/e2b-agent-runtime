@@ -16,8 +16,8 @@ export async function createE2BSandbox(config: AppConfig): Promise<Sandbox> {
     },
   });
 
-  // Ensure /workspace exists inside the Sandbox
-  await sandbox.commands.run('mkdir -p /workspace');
+  // Ensure /workspace exists and has write permissions inside the Sandbox
+  await sandbox.commands.run('sudo mkdir -p /workspace && sudo chmod 777 /workspace');
 
   return sandbox;
 }

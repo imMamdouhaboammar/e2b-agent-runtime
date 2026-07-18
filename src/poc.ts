@@ -30,37 +30,46 @@ export async function runPoC(envOverride?: Record<string, string | undefined>): 
     apiKeySecret = config.apiKey;
 
     // 1. Create Sandbox
+    console.error('[PoC] 1. Creating E2B Sandbox with MCP Gateway...');
     sandbox = await createE2BSandbox(config);
     result.sandboxCreated = true;
+    console.error('[PoC] Sandbox created successfully.');
 
     // 2. Connect MCP Client
+    console.error('[PoC] 2. Connecting MCP Client over Streamable HTTP...');
     const connection = await connectMcpClient(sandbox);
     client = connection.client;
     mcpTokenSecret = connection.mcpToken;
     result.mcpConnected = true;
     result.toolsDiscovered = connection.tools.length;
+    console.error(`[PoC] MCP Client connected. Discovered ${connection.tools.length} tools.`);
 
     // 3. Execute Filesystem Proof
+    console.error('[PoC] 3. Executing Filesystem MCP proof...');
     const fsResult = await executeFilesystemProof(client, connection.tools);
     result.filesystemWriteVerified = fsResult.writeVerified;
     result.filesystemReadVerified = fsResult.readVerified;
+    console.error('[PoC] Filesystem MCP write and read verified.');
 
     // 4. Run Terminal Checks
+    console.error('[PoC] 4. Running Terminal Environment Checks via Commands API...');
     const termResult = await runTerminalChecks(sandbox);
     if (!termResult.success) {
       throw new Error(`Terminal checks failed: ${termResult.error}`);
     }
     result.terminalChecksPassed = true;
+    console.error('[PoC] Terminal environment checks passed.');
 
     // Mark passed
     result.status = 'passed';
   } catch (error) {
     result.status = 'failed';
-    const rawError = error instanceof Error ? error.message : String(error);
+    const rawError = error instanceof Error ? error.stack || error.message : String(error);
     const sanitizedError = redactSecrets(rawError, [apiKeySecret, mcpTokenSecret]);
     result.error = sanitizedError;
     process.exitCode = 1;
   } finally {
+    console.error('[PoC] Teardown & Cleanup...');
     if (client) {
       await safelyCloseClient(client);
     }
@@ -70,6 +79,7 @@ export async function runPoC(envOverride?: Record<string, string | undefined>): 
     } else {
       result.sandboxDestroyed = false;
     }
+    console.error('[PoC] Teardown complete.');
   }
 
   return result;
@@ -81,6 +91,8 @@ if (process.argv[1]?.endsWith('poc.ts') || process.argv[1]?.endsWith('poc.js')) 
     console.log(JSON.stringify(output, null, 2));
     if (output.status === 'failed') {
       process.exit(1);
+    } else {
+      process.exit(0);
     }
   });
 }

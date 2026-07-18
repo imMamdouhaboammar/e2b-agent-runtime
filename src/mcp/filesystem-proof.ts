@@ -14,15 +14,15 @@ export async function executeFilesystemProof(
 ): Promise<FilesystemProofResult> {
   const toolNames = tools.map((t) => t.name);
 
-  // Find write tool
+  // Find write tool (handles namespaced tools like github/modelcontextprotocol/servers-write_file)
   const writeToolName =
-    toolNames.find((name) => name === 'write_file' || name === 'write-file') ||
+    toolNames.find((name) => name.endsWith('write_file') || name.endsWith('write-file')) ||
     toolNames.find((name) => name.toLowerCase().includes('write')) ||
     'write_file';
 
-  // Find read tool
+  // Find read tool (handles namespaced tools like github/modelcontextprotocol/servers-read_file)
   const readToolName =
-    toolNames.find((name) => name === 'read_file' || name === 'read-file') ||
+    toolNames.find((name) => name.endsWith('read_file') || name.endsWith('read-file')) ||
     toolNames.find((name) => name.toLowerCase().includes('read')) ||
     'read_file';
 
