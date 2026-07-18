@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { E2BWorkerManager } from '../runtime/e2b-worker-manager.js';
 import type { SessionRegistry } from '../runtime/session-registry.js';
 import { ControllerError, formatSafeErrorMessage } from '../shared/errors.js';
+import { createRepositoryTools } from './tools/repository-tools.js';
 
 export function createControllerMcpServer(
   workerManager: E2BWorkerManager,
@@ -49,13 +50,13 @@ export function createControllerMcpServer(
         };
 
         return {
-          content: [{ type: 'text', text: JSON.stringify(publicInfo, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(publicInfo, null, 2) }],
         };
       } catch (error) {
         const safe = formatSafeErrorMessage(error);
         return {
           isError: true,
-          content: [{ type: 'text', text: `Error [${safe.code}]: ${safe.message}` }],
+          content: [{ type: 'text' as const, text: `Error [${safe.code}]: ${safe.message}` }],
         };
       }
     }
@@ -77,16 +78,17 @@ export function createControllerMcpServer(
           expiresAt: s.expiresAt,
           taskLabel: s.taskLabel,
           lastCommandStatus: s.lastCommandStatus,
+          repository: s.repositoryState?.repository,
         }));
 
         return {
-          content: [{ type: 'text', text: JSON.stringify(sanitizedList, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(sanitizedList, null, 2) }],
         };
       } catch (error) {
         const safe = formatSafeErrorMessage(error);
         return {
           isError: true,
-          content: [{ type: 'text', text: `Error [${safe.code}]: ${safe.message}` }],
+          content: [{ type: 'text' as const, text: `Error [${safe.code}]: ${safe.message}` }],
         };
       }
     }
@@ -119,16 +121,18 @@ export function createControllerMcpServer(
           taskLabel: session.taskLabel,
           lastCommandStatus: session.lastCommandStatus,
           failureReason: session.failureReason,
+          repositoryState: session.repositoryState,
+          validationRecords: session.validationRecords,
         };
 
         return {
-          content: [{ type: 'text', text: JSON.stringify(publicDetails, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(publicDetails, null, 2) }],
         };
       } catch (error) {
         const safe = formatSafeErrorMessage(error);
         return {
           isError: true,
-          content: [{ type: 'text', text: `Error [${safe.code}]: ${safe.message}` }],
+          content: [{ type: 'text' as const, text: `Error [${safe.code}]: ${safe.message}` }],
         };
       }
     }
@@ -160,13 +164,13 @@ export function createControllerMcpServer(
         );
 
         return {
-          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
         };
       } catch (error) {
         const safe = formatSafeErrorMessage(error);
         return {
           isError: true,
-          content: [{ type: 'text', text: `Error [${safe.code}]: ${safe.message}` }],
+          content: [{ type: 'text' as const, text: `Error [${safe.code}]: ${safe.message}` }],
         };
       }
     }
@@ -185,7 +189,7 @@ export function createControllerMcpServer(
         return {
           content: [
             {
-              type: 'text',
+              type: 'text' as const,
               text: JSON.stringify(
                 {
                   sessionId: args.sessionId,
@@ -202,7 +206,7 @@ export function createControllerMcpServer(
         const safe = formatSafeErrorMessage(error);
         return {
           isError: true,
-          content: [{ type: 'text', text: `Error [${safe.code}]: ${safe.message}` }],
+          content: [{ type: 'text' as const, text: `Error [${safe.code}]: ${safe.message}` }],
         };
       }
     }
@@ -231,7 +235,7 @@ export function createControllerMcpServer(
         return {
           content: [
             {
-              type: 'text',
+              type: 'text' as const,
               text: JSON.stringify(
                 {
                   confirmed: true,
@@ -247,11 +251,35 @@ export function createControllerMcpServer(
         const safe = formatSafeErrorMessage(error);
         return {
           isError: true,
-          content: [{ type: 'text', text: `Error [${safe.code}]: ${safe.message}` }],
+          content: [{ type: 'text' as const, text: `Error [${safe.code}]: ${safe.message}` }],
         };
       }
     }
   );
+
+  // Attach Phase 3 Repository Tools
+  const repoTools = createRepositoryTools({ workerManager, registry });
+  for (const [toolName, toolDef] of Object.entries(repoTools)) {
+    server.tool(
+      toolName,
+      toolDef.description,
+      toolDef.inputSchema.shape,
+      async (args: any) => {
+        try {
+          const res = await toolDef.execute(args);
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(res, null, 2) }],
+          };
+        } catch (error) {
+          const safe = formatSafeErrorMessage(error);
+          return {
+            isError: true,
+            content: [{ type: 'text' as const, text: `Error [${safe.code}]: ${safe.message}` }],
+          };
+        }
+      }
+    );
+  }
 
   return server;
 }
