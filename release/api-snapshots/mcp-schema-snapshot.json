@@ -1,0 +1,2344 @@
+{
+  "runtime_create_session": {
+    "name": "runtime_create_session",
+    "description": "Create a disposable E2B Worker Sandbox session for isolated code execution",
+    "parameters": {
+      "timeoutMs": {
+        "type": "number",
+        "required": false,
+        "description": "Optional worker session timeout in milliseconds"
+      },
+      "taskLabel": {
+        "type": "string",
+        "required": false,
+        "description": "Optional label or short task description"
+      },
+      "metadata": {
+        "type": "object",
+        "required": false,
+        "description": "Optional string key-value metadata pairs"
+      }
+    }
+  },
+  "runtime_list_sessions": {
+    "name": "runtime_list_sessions",
+    "description": "List all active and recent worker runtime sessions owned by this controller",
+    "parameters": {}
+  },
+  "runtime_get_session": {
+    "name": "runtime_get_session",
+    "description": "Retrieve state and lifecycle information for a specific runtime session",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true,
+        "description": "Opaque runtime session ID"
+      }
+    }
+  },
+  "runtime_run_command": {
+    "name": "runtime_run_command",
+    "description": "Execute a terminal command inside the specified worker sandbox restricted to /workspace",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true,
+        "description": "Opaque runtime session ID"
+      },
+      "command": {
+        "type": "string",
+        "required": true,
+        "description": "Terminal shell command to execute"
+      },
+      "cwd": {
+        "type": "string",
+        "required": false,
+        "description": "Working directory inside sandbox (default: /workspace)"
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false,
+        "description": "Optional command execution timeout in milliseconds"
+      }
+    }
+  },
+  "runtime_destroy_session": {
+    "name": "runtime_destroy_session",
+    "description": "Idempotently kill and destroy a worker sandbox session",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true,
+        "description": "Opaque runtime session ID to destroy"
+      }
+    }
+  },
+  "runtime_destroy_all_sessions": {
+    "name": "runtime_destroy_all_sessions",
+    "description": "Emergency operation: Destroy all active worker sandbox sessions owned by this controller",
+    "parameters": {
+      "confirm": {
+        "type": "boolean",
+        "required": true,
+        "description": "Set to true to explicitly confirm destroying all active sessions"
+      }
+    }
+  },
+  "repository_bind": {
+    "name": "repository_bind",
+    "description": "Bind an active Worker session to one authorized GitHub repository.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      },
+      "repository": {
+        "type": "string",
+        "required": true,
+        "description": "Repository in owner/repo format"
+      },
+      "baseBranch": {
+        "type": "string",
+        "required": false,
+        "description": "Optional base branch name. Defaults to repository default branch."
+      }
+    }
+  },
+  "repository_clone": {
+    "name": "repository_clone",
+    "description": "Clone the bound repository base branch into /workspace/repository inside the Worker Sandbox.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "repository_inspect": {
+    "name": "repository_inspect",
+    "description": "Return a concise structured repository summary of branches, HEAD, clean/dirty state, manifests, and governance files.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "repository_read_file": {
+    "name": "repository_read_file",
+    "description": "Read content of a file inside /workspace/repository with path traversal safety and line range support.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      },
+      "path": {
+        "type": "string",
+        "required": true
+      },
+      "startLine": {
+        "type": "number",
+        "required": false
+      },
+      "endLine": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "repository_write_file": {
+    "name": "repository_write_file",
+    "description": "Write content to a file inside /workspace/repository safely.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      },
+      "path": {
+        "type": "string",
+        "required": true
+      },
+      "content": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "repository_apply_patch": {
+    "name": "repository_apply_patch",
+    "description": "Apply a unified diff patch to files in /workspace/repository.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      },
+      "patch": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "git_create_branch": {
+    "name": "git_create_branch",
+    "description": "Create a local feature branch from the recorded base SHA.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      },
+      "branchName": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "git_status": {
+    "name": "git_status",
+    "description": "Get structured Git status (staged, unstaged, untracked, clean).",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "git_diff": {
+    "name": "git_diff",
+    "description": "Get bounded Git diff for working tree, staged changes, or base branch comparison.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      },
+      "mode": {
+        "type": "unknown",
+        "required": false
+      },
+      "pathFilters": {
+        "type": "array",
+        "required": false
+      }
+    }
+  },
+  "git_commit": {
+    "name": "git_commit",
+    "description": "Create a local Git commit from explicitly staged file paths.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      },
+      "message": {
+        "type": "string",
+        "required": true
+      },
+      "paths": {
+        "type": "array",
+        "required": true
+      }
+    }
+  },
+  "validation_record": {
+    "name": "validation_record",
+    "description": "Record executed validation commands (tests, lint, build, etc.) for preflight correlation.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      },
+      "command": {
+        "type": "string",
+        "required": true
+      },
+      "category": {
+        "type": "unknown",
+        "required": true
+      },
+      "exitCode": {
+        "type": "number",
+        "required": true
+      },
+      "durationMs": {
+        "type": "number",
+        "required": true
+      },
+      "summary": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "github_preflight_publish": {
+    "name": "github_preflight_publish",
+    "description": "Verify repository status, clean worktree, secret scanning, base branch drift, and validation records prior to branch publication.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "github_publish_branch": {
+    "name": "github_publish_branch",
+    "description": "Publish the local feature branch to GitHub using short-lived installation access token.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      },
+      "confirmation": {
+        "type": "object",
+        "required": true
+      }
+    }
+  },
+  "github_prepare_pr_handoff": {
+    "name": "github_prepare_pr_handoff",
+    "description": "Generate structured PR handoff metadata for ChatGPT official GitHub connector to create Pull Request.",
+    "parameters": {
+      "sessionId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "agent_runtime_info": {
+    "name": "agent_runtime_info",
+    "description": "Get runtime version, template version, skills pack version, and operating security mode.",
+    "parameters": {}
+  },
+  "agent_list_skills": {
+    "name": "agent_list_skills",
+    "description": "List all available runtime skills with descriptions and content hashes.",
+    "parameters": {}
+  },
+  "agent_load_skill": {
+    "name": "agent_load_skill",
+    "description": "Load full or bounded content of a specific runtime skill.",
+    "parameters": {
+      "skillName": {
+        "type": "string",
+        "required": true,
+        "description": "Name of the skill to load (e.g. tool-routing, pr-creation)"
+      },
+      "maxBytes": {
+        "type": "number",
+        "required": false,
+        "description": "Maximum bytes to load (default 32768)"
+      }
+    }
+  },
+  "agent_get_workflow": {
+    "name": "agent_get_workflow",
+    "description": "Get structured workflow definition by name.",
+    "parameters": {
+      "workflowName": {
+        "type": "string",
+        "required": true,
+        "description": "Name of the workflow (e.g. feature-to-pr, bug-fix-to-pr)"
+      }
+    }
+  },
+  "agent_get_operating_instructions": {
+    "name": "agent_get_operating_instructions",
+    "description": "Get operating handbook instructions for the Worker Sandbox session.",
+    "parameters": {}
+  },
+  "coding_workspace_get": {
+    "name": "coding_workspace_get",
+    "description": "Get detailed state of an active coding workspace.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      }
+    }
+  },
+  "terminal_read": {
+    "name": "terminal_read",
+    "description": "Read incremental terminal output from PTY using cursor.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      },
+      "terminalId": {
+        "type": "string",
+        "required": true,
+        "description": "Terminal ID"
+      },
+      "cursor": {
+        "type": "number",
+        "required": false,
+        "description": "Starting cursor offset"
+      },
+      "maxBytes": {
+        "type": "number",
+        "required": false,
+        "description": "Maximum bytes to read"
+      }
+    }
+  },
+  "terminal_list": {
+    "name": "terminal_list",
+    "description": "List all active terminal sessions for a workspace.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      }
+    }
+  },
+  "workspace_list_ports": {
+    "name": "workspace_list_ports",
+    "description": "Detect listening dev server ports and preview URLs inside the Worker Sandbox.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      }
+    }
+  },
+  "coding_workspace_start": {
+    "name": "coding_workspace_start",
+    "description": "Start a new temporary coding workspace with repo clone, feature branch, bootstrap, and optional PTY.",
+    "parameters": {
+      "repository": {
+        "type": "string",
+        "required": true,
+        "description": "GitHub repository owner/repo"
+      },
+      "taskMode": {
+        "type": "unknown",
+        "required": false
+      },
+      "baseBranch": {
+        "type": "string",
+        "required": false
+      },
+      "branchName": {
+        "type": "string",
+        "required": false
+      },
+      "templateTag": {
+        "type": "string",
+        "required": false
+      },
+      "initialTerminal": {
+        "type": "boolean",
+        "required": false
+      },
+      "taskSummary": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "terminal_open": {
+    "name": "terminal_open",
+    "description": "Open a new persistent interactive PTY shell inside the Worker Sandbox.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      },
+      "shell": {
+        "type": "string",
+        "required": false
+      },
+      "cwd": {
+        "type": "string",
+        "required": false
+      },
+      "cols": {
+        "type": "number",
+        "required": false
+      },
+      "rows": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "terminal_exec": {
+    "name": "terminal_exec",
+    "description": "Run a deterministic one-shot command inside the Worker Sandbox.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      },
+      "command": {
+        "type": "string",
+        "required": true,
+        "description": "Command line to run"
+      },
+      "cwd": {
+        "type": "string",
+        "required": false
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "terminal_write": {
+    "name": "terminal_write",
+    "description": "Send input string or control characters to an active PTY.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      },
+      "terminalId": {
+        "type": "string",
+        "required": true,
+        "description": "Terminal ID"
+      },
+      "input": {
+        "type": "string",
+        "required": true,
+        "description": "Input string to send to PTY"
+      }
+    }
+  },
+  "terminal_resize": {
+    "name": "terminal_resize",
+    "description": "Resize active PTY window dimensions.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      },
+      "terminalId": {
+        "type": "string",
+        "required": true,
+        "description": "Terminal ID"
+      },
+      "cols": {
+        "type": "number",
+        "required": true
+      },
+      "rows": {
+        "type": "number",
+        "required": true
+      }
+    }
+  },
+  "terminal_send_signal": {
+    "name": "terminal_send_signal",
+    "description": "Send safe signal (SIGINT, SIGTERM, SIGHUP, SIGWINCH) to PTY process.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      },
+      "terminalId": {
+        "type": "string",
+        "required": true,
+        "description": "Terminal ID"
+      },
+      "signal": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "terminal_close": {
+    "name": "terminal_close",
+    "description": "Close active PTY session.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      },
+      "terminalId": {
+        "type": "string",
+        "required": true,
+        "description": "Terminal ID"
+      }
+    }
+  },
+  "agent_create_checkpoint": {
+    "name": "agent_create_checkpoint",
+    "description": "Save structured session checkpoint metadata.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      },
+      "repository": {
+        "type": "string",
+        "required": false
+      },
+      "baseBranch": {
+        "type": "string",
+        "required": false
+      },
+      "baseSha": {
+        "type": "string",
+        "required": false
+      },
+      "headSha": {
+        "type": "string",
+        "required": false
+      },
+      "branch": {
+        "type": "string",
+        "required": false
+      },
+      "taskScope": {
+        "type": "string",
+        "required": false
+      },
+      "nextAction": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "coding_workspace_destroy": {
+    "name": "coding_workspace_destroy",
+    "description": "Destroy active coding workspace and terminate all associated processes and sandboxes.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      },
+      "confirm": {
+        "type": "boolean",
+        "required": true,
+        "description": "Must set to true to confirm destruction"
+      }
+    }
+  },
+  "coding_task_start": {
+    "name": "coding_task_start",
+    "description": "Starts a new coding task in an existing Phase 4 workspace.",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "ID of existing workspace"
+      },
+      "repository": {
+        "type": "string",
+        "required": true,
+        "description": "Repository identifier"
+      },
+      "taskMode": {
+        "type": "unknown",
+        "required": true,
+        "description": "Task mode classification"
+      },
+      "taskLabel": {
+        "type": "string",
+        "required": true,
+        "description": "Short task label"
+      },
+      "userRequest": {
+        "type": "string",
+        "required": true,
+        "description": "User request description"
+      },
+      "acceptanceCriteria": {
+        "type": "array",
+        "required": false,
+        "description": "Acceptance criteria list"
+      },
+      "explicitOutOfScope": {
+        "type": "array",
+        "required": false,
+        "description": "Explicit out-of-scope items"
+      },
+      "relatedIssue": {
+        "type": "string",
+        "required": false
+      },
+      "relatedPullRequest": {
+        "type": "string",
+        "required": false
+      },
+      "repairCycleLimit": {
+        "type": "number",
+        "required": false
+      },
+      "commandLimit": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "coding_task_get": {
+    "name": "coding_task_get",
+    "description": "Retrieves detailed state and summary of a coding task.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true,
+        "description": "Task ID"
+      }
+    }
+  },
+  "repository_intelligence_scan": {
+    "name": "repository_intelligence_scan",
+    "description": "Intelligently scans the workspace repository structure, manifests, and commands.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true,
+        "description": "Task ID"
+      },
+      "depth": {
+        "type": "unknown",
+        "required": true
+      },
+      "includeGenerated": {
+        "type": "unknown",
+        "required": true
+      },
+      "includeWorkflows": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "repository_intelligence_get": {
+    "name": "repository_intelligence_get",
+    "description": "Gets a specific section of the repository intelligence report.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true,
+        "description": "Task ID"
+      },
+      "section": {
+        "type": "string",
+        "required": false,
+        "description": "Section name (overview, structure, commands, tests, etc.)"
+      }
+    }
+  },
+  "repository_search": {
+    "name": "repository_search",
+    "description": "Searches file content using safe ripgrep within the bound repository.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true,
+        "description": "Task ID"
+      },
+      "query": {
+        "type": "string",
+        "required": true,
+        "description": "Search query"
+      },
+      "paths": {
+        "type": "unknown",
+        "required": true
+      },
+      "fileGlobs": {
+        "type": "unknown",
+        "required": true
+      },
+      "maxResults": {
+        "type": "unknown",
+        "required": true
+      },
+      "contextLines": {
+        "type": "unknown",
+        "required": true
+      },
+      "caseSensitive": {
+        "type": "unknown",
+        "required": true
+      },
+      "literal": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "repository_find_files": {
+    "name": "repository_find_files",
+    "description": "Finds files matching patterns within the repository.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true,
+        "description": "Task ID"
+      },
+      "namePattern": {
+        "type": "string",
+        "required": false
+      },
+      "pathPattern": {
+        "type": "string",
+        "required": false
+      },
+      "extensions": {
+        "type": "unknown",
+        "required": true
+      },
+      "maxResults": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "repository_symbol_search": {
+    "name": "repository_symbol_search",
+    "description": "Searches for code symbols (functions, classes, interfaces) with confidence rating.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true,
+        "description": "Task ID"
+      },
+      "symbol": {
+        "type": "string",
+        "required": true,
+        "description": "Symbol name to search for"
+      },
+      "language": {
+        "type": "string",
+        "required": false
+      },
+      "paths": {
+        "type": "unknown",
+        "required": true
+      },
+      "maxResults": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "coding_plan_set": {
+    "name": "coding_plan_set",
+    "description": "Sets or updates the structured plan for a coding task.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "confirmedProblem": {
+        "type": "string",
+        "required": true
+      },
+      "intendedChange": {
+        "type": "string",
+        "required": true
+      },
+      "untouchedScope": {
+        "type": "string",
+        "required": true
+      },
+      "verificationMethod": {
+        "type": "string",
+        "required": true
+      },
+      "steps": {
+        "type": "array",
+        "required": true
+      }
+    }
+  },
+  "coding_plan_update_step": {
+    "name": "coding_plan_update_step",
+    "description": "Updates the status and evidence references for a step in the task plan.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "stepId": {
+        "type": "string",
+        "required": true
+      },
+      "status": {
+        "type": "unknown",
+        "required": true
+      },
+      "evidenceRefs": {
+        "type": "array",
+        "required": false
+      },
+      "blocker": {
+        "type": "string",
+        "required": false
+      },
+      "note": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "coding_plan_get": {
+    "name": "coding_plan_get",
+    "description": "Gets the current plan for a coding task.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "execution_record_command": {
+    "name": "execution_record_command",
+    "description": "Associates a terminal execution with a task as official evidence.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "executionId": {
+        "type": "string",
+        "required": true
+      },
+      "category": {
+        "type": "unknown",
+        "required": true
+      },
+      "purpose": {
+        "type": "string",
+        "required": false
+      },
+      "relatedStepId": {
+        "type": "string",
+        "required": false
+      },
+      "expectedOutcome": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "execution_list_evidence": {
+    "name": "execution_list_evidence",
+    "description": "Lists recorded execution evidence for a task.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "category": {
+        "type": "unknown",
+        "required": false
+      },
+      "status": {
+        "type": "string",
+        "required": false
+      },
+      "limit": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "validation_plan_detect": {
+    "name": "validation_plan_detect",
+    "description": "Proposes validation commands based on repository intelligence and modified paths.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "targetPaths": {
+        "type": "unknown",
+        "required": true
+      },
+      "taskMode": {
+        "type": "unknown",
+        "required": false
+      }
+    }
+  },
+  "validation_cycle_start": {
+    "name": "validation_cycle_start",
+    "description": "Starts a new validation cycle for a task.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "plannedCategories": {
+        "type": "array",
+        "required": true
+      },
+      "cycleLabel": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "validation_cycle_complete": {
+    "name": "validation_cycle_complete",
+    "description": "Completes a validation cycle using recorded execution evidence.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "cycleId": {
+        "type": "string",
+        "required": true
+      },
+      "evidenceIds": {
+        "type": "array",
+        "required": true
+      },
+      "summary": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "validation_get_status": {
+    "name": "validation_get_status",
+    "description": "Gets the current validation status and repair budget for a task.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "failure_classify": {
+    "name": "failure_classify",
+    "description": "Classifies execution failure into stable failure categories and signature.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "executionId": {
+        "type": "string",
+        "required": true
+      },
+      "clientInterpretation": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "repair_attempt_start": {
+    "name": "repair_attempt_start",
+    "description": "Starts a bounded repair attempt following a failed validation cycle.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "cycleId": {
+        "type": "string",
+        "required": true
+      },
+      "failureEvidenceIds": {
+        "type": "array",
+        "required": true
+      },
+      "hypothesis": {
+        "type": "string",
+        "required": true,
+        "description": "Non-empty bounded repair hypothesis"
+      },
+      "intendedInspection": {
+        "type": "string",
+        "required": false
+      },
+      "intendedChangeScope": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "repair_attempt_complete": {
+    "name": "repair_attempt_complete",
+    "description": "Completes a repair attempt and records changed files.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "repairAttemptId": {
+        "type": "string",
+        "required": true
+      },
+      "inspectedPaths": {
+        "type": "array",
+        "required": true
+      },
+      "changedPaths": {
+        "type": "array",
+        "required": true
+      },
+      "result": {
+        "type": "unknown",
+        "required": true
+      },
+      "decisionSummary": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "coding_checkpoint_create": {
+    "name": "coding_checkpoint_create",
+    "description": "Creates a compact, sanitized checkpoint of current task progress.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "reason": {
+        "type": "string",
+        "required": true
+      },
+      "decisions": {
+        "type": "array",
+        "required": true
+      },
+      "inspectedPaths": {
+        "type": "array",
+        "required": true
+      },
+      "importantSymbols": {
+        "type": "array",
+        "required": true
+      },
+      "currentHypotheses": {
+        "type": "array",
+        "required": true
+      },
+      "blockers": {
+        "type": "array",
+        "required": true
+      },
+      "risks": {
+        "type": "array",
+        "required": true
+      },
+      "exactNextAction": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "coding_checkpoint_get": {
+    "name": "coding_checkpoint_get",
+    "description": "Gets details of a task checkpoint.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "checkpointId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "coding_checkpoint_list": {
+    "name": "coding_checkpoint_list",
+    "description": "Lists checkpoint metadata for a task.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "coding_task_resume": {
+    "name": "coding_task_resume",
+    "description": "Resumes a task from a checkpoint with drift detection.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "checkpointId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "coding_diff_review": {
+    "name": "coding_diff_review",
+    "description": "Reviews working tree git diff, unplanned files, secret findings, and scope expansion.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "includePatch": {
+        "type": "unknown",
+        "required": true
+      },
+      "maxPatchBytes": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "coding_completion_gate": {
+    "name": "coding_completion_gate",
+    "description": "Evaluates all completion gates before Phase 3 publication preflight.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "acknowledgeUnavailableChecks": {
+        "type": "unknown",
+        "required": true
+      },
+      "unavailableCheckReasons": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "coding_pr_handoff_prepare": {
+    "name": "coding_pr_handoff_prepare",
+    "description": "Prepares a structured Pull Request handoff markdown document.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "coding_task_abandon": {
+    "name": "coding_task_abandon",
+    "description": "Abandons a coding task with explicit confirmation.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "confirm": {
+        "type": "boolean",
+        "required": true,
+        "description": "Must be true to confirm abandonment"
+      },
+      "reason": {
+        "type": "string",
+        "required": true
+      },
+      "destroyWorkspace": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "workspace_preview_resolve": {
+    "name": "workspace_preview_resolve",
+    "description": "Resolves application port to internal localhost and optional E2B preview URL",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace session ID"
+      },
+      "port": {
+        "type": "number",
+        "required": true,
+        "description": "Listening port number"
+      },
+      "protocol": {
+        "type": "unknown",
+        "required": true,
+        "description": "Protocol"
+      },
+      "external": {
+        "type": "unknown",
+        "required": true,
+        "description": "Request external E2B preview host"
+      },
+      "processId": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "browser_session_open": {
+    "name": "browser_session_open",
+    "description": "Opens an isolated Playwright Chromium session for a workspace",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true,
+        "description": "Workspace ID"
+      },
+      "taskId": {
+        "type": "string",
+        "required": false,
+        "description": "Phase 5 Task ID"
+      },
+      "previewId": {
+        "type": "string",
+        "required": false,
+        "description": "Resolved Preview ID"
+      },
+      "viewport": {
+        "type": "object",
+        "required": false
+      },
+      "locale": {
+        "type": "string",
+        "required": false
+      },
+      "timezoneId": {
+        "type": "string",
+        "required": false
+      },
+      "colorScheme": {
+        "type": "unknown",
+        "required": false
+      },
+      "reducedMotion": {
+        "type": "unknown",
+        "required": false
+      },
+      "userAgent": {
+        "type": "string",
+        "required": false
+      },
+      "ignoreHTTPSErrors": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "browser_session_get": {
+    "name": "browser_session_get",
+    "description": "Retrieves state and summary for a browser session",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true,
+        "description": "Browser Session ID"
+      }
+    }
+  },
+  "browser_session_close": {
+    "name": "browser_session_close",
+    "description": "Closes a browser session and cleans up resources",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "force": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "browser_page_new": {
+    "name": "browser_page_new",
+    "description": "Creates a new isolated page in an existing browser session",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "browser_page_close": {
+    "name": "browser_page_close",
+    "description": "Closes a specific page in a browser session",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "browser_navigate": {
+    "name": "browser_navigate",
+    "description": "Navigates a page to a target URL or preview path with security checks",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "target": {
+        "type": "string",
+        "required": true,
+        "description": "Target URL or relative path"
+      },
+      "waitUntil": {
+        "type": "unknown",
+        "required": true
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "browser_snapshot": {
+    "name": "browser_snapshot",
+    "description": "Captures a bounded structured snapshot of visible page content and locators",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "mode": {
+        "type": "unknown",
+        "required": true
+      },
+      "maxBytes": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "browser_click": {
+    "name": "browser_click",
+    "description": "Clicks an element identified by accessible locator or elementRef",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "target": {
+        "type": "object",
+        "required": true
+      },
+      "button": {
+        "type": "unknown",
+        "required": true
+      },
+      "clickCount": {
+        "type": "unknown",
+        "required": true
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "browser_fill": {
+    "name": "browser_fill",
+    "description": "Fills a form field with secret redaction for sensitive fields",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "target": {
+        "type": "object",
+        "required": true
+      },
+      "value": {
+        "type": "string",
+        "required": true
+      },
+      "sensitive": {
+        "type": "unknown",
+        "required": true
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "browser_press": {
+    "name": "browser_press",
+    "description": "Presses a keyboard key on the active element or page",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "target": {
+        "type": "object",
+        "required": false
+      },
+      "key": {
+        "type": "string",
+        "required": true
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "browser_select_option": {
+    "name": "browser_select_option",
+    "description": "Selects one or more options in an HTML select control",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "target": {
+        "type": "object",
+        "required": true
+      },
+      "values": {
+        "type": "array",
+        "required": true
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "browser_check": {
+    "name": "browser_check",
+    "description": "Checks or unchecks a checkbox or radio button control",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "target": {
+        "type": "object",
+        "required": true
+      },
+      "checked": {
+        "type": "boolean",
+        "required": true
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "browser_upload_file": {
+    "name": "browser_upload_file",
+    "description": "Uploads files restricted strictly to active workspace paths",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "target": {
+        "type": "object",
+        "required": true
+      },
+      "workspacePaths": {
+        "type": "array",
+        "required": true
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "browser_wait_for": {
+    "name": "browser_wait_for",
+    "description": "Waits for a condition (element, text, network idle, title match, or delay)",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "condition": {
+        "type": "object",
+        "required": true
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "browser_assert": {
+    "name": "browser_assert",
+    "description": "Runs a structured UI assertion on real browser state and generates evidence",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": false
+      },
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "assertion": {
+        "type": "object",
+        "required": true
+      }
+    }
+  },
+  "browser_screenshot": {
+    "name": "browser_screenshot",
+    "description": "Captures a page screenshot and saves it to controlled artifact storage",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "fullPage": {
+        "type": "unknown",
+        "required": true
+      },
+      "imageType": {
+        "type": "unknown",
+        "required": true
+      },
+      "quality": {
+        "type": "number",
+        "required": false
+      },
+      "label": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "browser_console_read": {
+    "name": "browser_console_read",
+    "description": "Reads sanitized console log entries with cursor pagination",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "cursor": {
+        "type": "number",
+        "required": false
+      },
+      "limit": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "browser_page_errors_read": {
+    "name": "browser_page_errors_read",
+    "description": "Reads uncaught page errors with sanitized stack traces",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "cursor": {
+        "type": "number",
+        "required": false
+      },
+      "limit": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "browser_network_read": {
+    "name": "browser_network_read",
+    "description": "Reads network metadata and HTTP failure logs with query/header secret redaction",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "cursor": {
+        "type": "number",
+        "required": false
+      },
+      "limit": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "browser_trace_start": {
+    "name": "browser_trace_start",
+    "description": "Starts recording a Playwright trace in the browser context",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "screenshots": {
+        "type": "unknown",
+        "required": true
+      },
+      "snapshots": {
+        "type": "unknown",
+        "required": true
+      },
+      "sources": {
+        "type": "unknown",
+        "required": true
+      },
+      "label": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "browser_trace_stop": {
+    "name": "browser_trace_stop",
+    "description": "Stops tracing and saves a trace zip archive to controlled artifact storage",
+    "parameters": {
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "browser_accessibility_scan": {
+    "name": "browser_accessibility_scan",
+    "description": "Runs a local accessibility scan on page content using axe-core",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": false
+      },
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "pageId": {
+        "type": "string",
+        "required": true
+      },
+      "impactLevels": {
+        "type": "array",
+        "required": false
+      },
+      "maxFindings": {
+        "type": "unknown",
+        "required": true
+      }
+    }
+  },
+  "browser_failure_classify": {
+    "name": "browser_failure_classify",
+    "description": "Classifies browser/UI failure into distinct failure categories with suggested inspection actions",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "errorMessage": {
+        "type": "string",
+        "required": false
+      },
+      "evidenceIds": {
+        "type": "array",
+        "required": false
+      },
+      "affectedUrl": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "browser_verification_cycle_start": {
+    "name": "browser_verification_cycle_start",
+    "description": "Starts a browser verification cycle bound to a Phase 5 task and current head SHA",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "browserSessionId": {
+        "type": "string",
+        "required": true
+      },
+      "label": {
+        "type": "string",
+        "required": true
+      },
+      "startHeadSha": {
+        "type": "string",
+        "required": true
+      },
+      "previewId": {
+        "type": "string",
+        "required": true
+      },
+      "processId": {
+        "type": "string",
+        "required": false
+      },
+      "expectedFlows": {
+        "type": "array",
+        "required": true
+      },
+      "expectedAssertions": {
+        "type": "array",
+        "required": true
+      }
+    }
+  },
+  "browser_verification_cycle_complete": {
+    "name": "browser_verification_cycle_complete",
+    "description": "Completes a browser verification cycle and evaluates evidence freshness",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "cycleId": {
+        "type": "string",
+        "required": true
+      },
+      "endHeadSha": {
+        "type": "string",
+        "required": true
+      },
+      "evidenceIds": {
+        "type": "array",
+        "required": true
+      },
+      "consoleErrors": {
+        "type": "number",
+        "required": false
+      },
+      "pageErrors": {
+        "type": "number",
+        "required": false
+      },
+      "networkFailures": {
+        "type": "number",
+        "required": false
+      },
+      "accessibilityFindings": {
+        "type": "number",
+        "required": false
+      },
+      "summary": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "browser_verification_get": {
+    "name": "browser_verification_get",
+    "description": "Retrieves browser verification state and evidence freshness for a task",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true
+      },
+      "currentHeadSha": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "artifact_list": {
+    "name": "artifact_list",
+    "description": "Lists metadata for browser artifacts in a workspace",
+    "parameters": {
+      "workspaceId": {
+        "type": "string",
+        "required": true
+      },
+      "taskId": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "artifact_get_metadata": {
+    "name": "artifact_get_metadata",
+    "description": "Gets detailed metadata for a browser artifact",
+    "parameters": {
+      "artifactId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "artifact_create_download_url": {
+    "name": "artifact_create_download_url",
+    "description": "Generates a short-lived pre-signed download URL for a browser artifact",
+    "parameters": {
+      "artifactId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "artifact_delete": {
+    "name": "artifact_delete",
+    "description": "Deletes a browser artifact with explicit confirmation",
+    "parameters": {
+      "artifactId": {
+        "type": "string",
+        "required": true
+      },
+      "confirm": {
+        "type": "boolean",
+        "required": true
+      }
+    }
+  },
+  "github_pr_attach": {
+    "name": "github_pr_attach",
+    "description": "Attach a coding task to one existing Pull Request and record base/head SHAs.",
+    "parameters": {
+      "taskId": {
+        "type": "string",
+        "required": true,
+        "description": "ID of existing coding task"
+      },
+      "repository": {
+        "type": "string",
+        "required": true,
+        "description": "Repository identifier in owner/repo format"
+      },
+      "pullRequestNumber": {
+        "type": "number",
+        "required": true,
+        "description": "PR number"
+      }
+    }
+  },
+  "github_pr_get": {
+    "name": "github_pr_get",
+    "description": "Retrieve bounded Pull Request metadata and status.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true,
+        "description": "PR Repair Session ID"
+      }
+    }
+  },
+  "github_pr_list_files": {
+    "name": "github_pr_list_files",
+    "description": "List files changed in the Pull Request with pagination and patch excerpts.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "cursor": {
+        "type": "number",
+        "required": false,
+        "description": "Page number"
+      },
+      "limit": {
+        "type": "number",
+        "required": false,
+        "description": "Limit per page (max 100)"
+      }
+    }
+  },
+  "github_pr_list_review_threads": {
+    "name": "github_pr_list_review_threads",
+    "description": "List all review threads and comments associated with the Pull Request.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "github_pr_get_review_thread": {
+    "name": "github_pr_get_review_thread",
+    "description": "Get full comments and line mappings for one review thread.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "threadId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "github_pr_classify_feedback": {
+    "name": "github_pr_classify_feedback",
+    "description": "Classify the Pull Request review feedback and identify paths requiring repair.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "threadIds": {
+        "type": "array",
+        "required": false
+      },
+      "includeGeneralReviews": {
+        "type": "boolean",
+        "required": false
+      }
+    }
+  },
+  "github_pr_list_checks": {
+    "name": "github_pr_list_checks",
+    "description": "List check runs and statuses for the exact HEAD SHA of the Pull Request.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "headSha": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "github_pr_list_workflow_runs": {
+    "name": "github_pr_list_workflow_runs",
+    "description": "List Actions workflow runs for the exact HEAD SHA.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "github_pr_get_ci_failure_evidence": {
+    "name": "github_pr_get_ci_failure_evidence",
+    "description": "Fetch structured failed check annotations and bounded redacted log excerpts.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "headSha": {
+        "type": "string",
+        "required": true
+      },
+      "checkRunIds": {
+        "type": "array",
+        "required": false
+      },
+      "workflowRunIds": {
+        "type": "array",
+        "required": false
+      },
+      "jobIds": {
+        "type": "array",
+        "required": false
+      },
+      "maxBytes": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "github_pr_repair_workspace_start": {
+    "name": "github_pr_repair_workspace_start",
+    "description": "Clone Pull Request head branch and reconstruct E2B Worker sandbox.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "templateTag": {
+        "type": "string",
+        "required": false
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "github_pr_repair_plan_set": {
+    "name": "github_pr_repair_plan_set",
+    "description": "Configure and validate a bounded repair plan inside the coding task.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "confirmedFailures": {
+        "type": "array",
+        "required": true
+      },
+      "selectedReviewThreads": {
+        "type": "array",
+        "required": true
+      },
+      "intendedChanges": {
+        "type": "array",
+        "required": true
+      },
+      "untouchedScope": {
+        "type": "string",
+        "required": true
+      },
+      "validationPlan": {
+        "type": "array",
+        "required": true
+      },
+      "steps": {
+        "type": "array",
+        "required": true
+      }
+    }
+  },
+  "github_pr_repair_cycle_start": {
+    "name": "github_pr_repair_cycle_start",
+    "description": "Start a single bounded repair cycle with specific hypothesis.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "selectedFeedbackIds": {
+        "type": "array",
+        "required": true
+      },
+      "selectedCIEvidenceIds": {
+        "type": "array",
+        "required": true
+      },
+      "hypothesis": {
+        "type": "string",
+        "required": true
+      },
+      "expectedChangedPaths": {
+        "type": "array",
+        "required": true
+      },
+      "plannedValidation": {
+        "type": "array",
+        "required": true
+      }
+    }
+  },
+  "github_pr_repair_cycle_complete": {
+    "name": "github_pr_repair_cycle_complete",
+    "description": "Complete the current repair cycle and assert git file updates.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "repairCycleId": {
+        "type": "string",
+        "required": true
+      },
+      "changedPaths": {
+        "type": "array",
+        "required": true
+      },
+      "validationEvidenceIds": {
+        "type": "array",
+        "required": true
+      },
+      "reviewSummary": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "github_pr_repair_diff_review": {
+    "name": "github_pr_repair_diff_review",
+    "description": "Review the complete difference between original PR head and current local repair head.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "github_pr_repair_preflight": {
+    "name": "github_pr_repair_preflight",
+    "description": "Run full preflight checks ensuring fast-forward safety before pushing branch.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "github_pr_push_repair": {
+    "name": "github_pr_push_repair",
+    "description": "Push only fast-forward updates to the existing Pull Request branch (approval-gated external write).",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "confirmation": {
+        "type": "object",
+        "required": true
+      }
+    }
+  },
+  "github_pr_refresh_ci": {
+    "name": "github_pr_refresh_ci",
+    "description": "Poll CI check status and workflow runs for the new head SHA.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "headSha": {
+        "type": "string",
+        "required": true
+      },
+      "wait": {
+        "type": "boolean",
+        "required": false
+      },
+      "timeoutMs": {
+        "type": "number",
+        "required": false
+      },
+      "pollIntervalMs": {
+        "type": "number",
+        "required": false
+      }
+    }
+  },
+  "github_pr_prepare_review_responses": {
+    "name": "github_pr_prepare_review_responses",
+    "description": "Draft proposed comments replying to resolved review threads.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "threadIds": {
+        "type": "array",
+        "required": true
+      },
+      "repairCommitShas": {
+        "type": "array",
+        "required": true
+      },
+      "validationEvidenceIds": {
+        "type": "array",
+        "required": true
+      }
+    }
+  },
+  "github_pr_post_review_response": {
+    "name": "github_pr_post_review_response",
+    "description": "Post thread comment replies on GitHub Pull Request threads (approval-gated external write).",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      },
+      "threadId": {
+        "type": "string",
+        "required": true
+      },
+      "response": {
+        "type": "string",
+        "required": true
+      },
+      "confirm": {
+        "type": "boolean",
+        "required": true
+      }
+    }
+  },
+  "github_pr_prepare_final_handoff": {
+    "name": "github_pr_prepare_final_handoff",
+    "description": "Construct the final verification handoff summary.",
+    "parameters": {
+      "prRepairId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  },
+  "runtime_system_status": {
+    "name": "runtime_system_status",
+    "description": "Retrieve Remote MCP Controller health, DB status, active sessions, and job health",
+    "parameters": {}
+  },
+  "runtime_capacity_status": {
+    "name": "runtime_capacity_status",
+    "description": "Retrieve limits, resource capacities, and soft/hard quota usage",
+    "parameters": {}
+  },
+  "runtime_incident_snapshot": {
+    "name": "runtime_incident_snapshot",
+    "description": "Retrieve a list of recent system errors and operational failures (sanitized of secrets)",
+    "parameters": {}
+  }
+}

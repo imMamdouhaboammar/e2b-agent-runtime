@@ -1,0 +1,9 @@
+{
+  "name": "e2b-agent-runtime",
+  "version": "0.0.1-rc1",
+  "commit": "feat/end-to-end-release-readiness-phase-10-head",
+  "buildDate": "2026-07-18T10:54:50.668Z",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  }
+}
