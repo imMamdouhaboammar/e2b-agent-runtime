@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "validation-policy",
+  "version": "1.0.0",
+  "evidenceTruthLevels": [
+    "1. Repository command executed successfully inside worker",
+    "2. GitHub Actions passed for feature-branch SHA",
+    "3. Focused static review",
+    "4. Not verified"
+  ],
+  "staleTriggers": [
+    "head_sha_changed",
+    "working_tree_modified",
+    "lockfile_changed",
+    "dependencies_updated"
+  ]
+}
