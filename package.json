@@ -1,26 +1,40 @@
 {
   "name": "e2b-agent-runtime",
   "version": "0.0.1",
-  "description": "E2B Sandbox MCP Gateway Proof of Concept (Phase 1)",
+  "description": "E2B Agent Runtime - Remote MCP Controller & Sandbox Lifecycle Manager",
   "type": "module",
-  "main": "dist/poc.js",
+  "main": "dist/controller/server.js",
   "scripts": {
-    "dev": "tsx src/poc.ts",
+    "dev": "tsx src/controller/server.ts",
     "poc": "tsx src/poc.ts",
+    "start": "node dist/controller/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "build": "tsc",
-    "check": "pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "controller:provision": "tsx src/provisioning/provision-controller.ts",
+    "controller:status": "tsx src/provisioning/controller-status.ts",
+    "controller:resume": "tsx src/provisioning/controller-resume.ts",
+    "controller:destroy": "tsx src/provisioning/controller-destroy.ts",
+    "controller:logs": "tsx src/provisioning/controller-logs.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.1.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "e2b": "^2.35.0",
+    "express": "^4.19.2",
+    "uuid": "^10.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
     "@types/node": "^20.14.0",
+    "@types/supertest": "^6.0.2",
+    "@types/uuid": "^10.0.0",
+    "supertest": "^7.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.4.5",
     "vitest": "^1.6.0"
