@@ -138,5 +138,53 @@ describe('Phase 9 Production Hardening Unit Tests', () => {
       expect(res.status).toBe(503);
       expect(res.body.error).toBe('SERVICE_UNAVAILABLE');
     });
+
+    describe('OAuth Discovery and Dynamic Registration', () => {
+      it('should return 200 and valid metadata for protected resource discovery', async () => {
+        const res = await request(app).get('/.well-known/oauth-protected-resource');
+        expect(res.status).toBe(200);
+        expect(res.body.resource).toContain('/mcp');
+        expect(res.body.authorization_servers).toHaveLength(1);
+      });
+
+      it('should return 200 and valid openid configuration', async () => {
+        const res = await request(app).get('/.well-known/openid-configuration');
+        expect(res.status).toBe(200);
+        expect(res.body.issuer).toBeDefined();
+        expect(res.body.authorization_endpoint).toContain('/oauth/authorize');
+        expect(res.body.registration_endpoint).toContain('/oauth/register');
+      });
+
+      it('should successfully register a dynamic client', async () => {
+        const mockQuery = vi.mocked(db.query);
+        mockQuery.mockResolvedValueOnce({ rowCount: 1, rows: [] }); // insert success
+
+        const res = await request(app)
+          .post('/oauth/register')
+          .send({
+            client_name: 'Test Client',
+            redirect_uris: ['https://example.com/callback'],
+            grant_types: ['authorization_code'],
+            token_endpoint_auth_method: 'none'
+          });
+
+        expect(res.status).toBe(201);
+        expect(res.body.client_id).toBeDefined();
+        expect(res.body.client_name).toBe('Test Client');
+        expect(res.body.redirect_uris).toEqual(['https://example.com/callback']);
+        expect(res.body.token_endpoint_auth_method).toBe('none');
+      });
+
+      it('should reject dynamic client registration when redirect_uris is missing or empty', async () => {
+        const res = await request(app)
+          .post('/oauth/register')
+          .send({
+            client_name: 'Test Client'
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe('invalid_client_metadata');
+      });
+    });
   });
 });
