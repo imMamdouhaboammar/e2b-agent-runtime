@@ -10,7 +10,7 @@ REGION="europe-west1"
 CONFIG_NAME="e2b-agent-runtime-staging"
 
 # Select our configuration
-gcloud config configurations select "$CONFIG_NAME" &>/dev/null
+gcloud config configurations activate "$CONFIG_NAME" &>/dev/null
 
 COMMIT_SHA=$(git rev-parse --short HEAD)
 IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/e2b-agent-runtime/controller:${COMMIT_SHA}"

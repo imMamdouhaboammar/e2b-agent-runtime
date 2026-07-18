@@ -10,7 +10,7 @@ REGION="europe-west1"
 CONFIG_NAME="e2b-agent-runtime-staging"
 
 # Select our configuration
-gcloud config configurations select "$CONFIG_NAME" &>/dev/null
+gcloud config configurations activate "$CONFIG_NAME" &>/dev/null
 
 TARGET_REVISION="${1:-}"
 

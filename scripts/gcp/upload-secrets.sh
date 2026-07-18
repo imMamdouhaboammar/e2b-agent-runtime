@@ -9,7 +9,7 @@ PROJECT_ID="e2b-agent-runtime-bf8e6a"
 CONFIG_NAME="e2b-agent-runtime-staging"
 
 # Select our configuration
-gcloud config configurations select "$CONFIG_NAME" &>/dev/null
+gcloud config configurations activate "$CONFIG_NAME" &>/dev/null
 
 # Load environment variables from .env if present
 if [ -f .env ]; then
