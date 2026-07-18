@@ -369,3 +369,5 @@ export class TaskStore {
     fs.renameSync(tempPath, filePath);
   }
 }
+
+export const taskStore = new TaskStore();
